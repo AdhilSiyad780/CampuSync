@@ -1,11 +1,17 @@
-import { useState } from "react";
-
+import { useState ,useEffect} from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function SuperAdminLogin(){
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
+    const navigate = useNavigate();
 
+    useEffect(() => {
+    const token = localStorage.getItem("access");
+    if (token) navigate("/dashboard"); // redirect to the dashboard if already logged in
+      }, [navigate]);
+    
     const handleLogin = async(e)=>{
         e.preventDefault();
         
@@ -21,7 +27,7 @@ export default function SuperAdminLogin(){
             setError(data.detail || 'Login Failed')
         }else{
             localStorage.setItem('access',data.access)
-            alert('Super admin Logged in')
+            navigate("/dashboard");
         }
 
 

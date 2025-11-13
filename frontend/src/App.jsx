@@ -1,17 +1,35 @@
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import SuperAdminLogin from "./pages/SuperAdminLogin";
+import SubscriptionPlans from "./pages/SubscriptionPlans";
+import Dashboard from "./pages/Dashboard.jsx";
+import ProtectedRoute from "./componets/ProtectedRoute";
 
-
-import axios from "./api/axios";
-import SuperAdminLogin from './pages/SuperAdminLogin'
-
-export default function App(){
-  const TestApi = async ()=>{
-    const res = await axios.get('/');
-    console.log('backend response',res.data)
-  }
+export default function App() {
   return (
-    <div>
-      <SuperAdminLogin />
-      
-    </div>
-  )
+    <BrowserRouter>
+      <Routes>
+
+        <Route path="/" element={<SuperAdminLogin />} />
+
+        <Route
+          path="/subscriptions/plans"
+          element={
+            <ProtectedRoute>
+              <SubscriptionPlans />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+
+      </Routes>
+    </BrowserRouter>
+  );
 }
