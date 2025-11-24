@@ -5,13 +5,22 @@ import SuperAdminProfile from "./pages/SuperAdminProfile";
 import SubscriptionPlans from "./pages/SubscriptionPlans";
 import ProtectedRoute from "./componets/ProtectedRoute";
 import LoginPage from "./pages/SuperAdminLogin";
-
+import AdminSignupEmailStep from "./pages/school/AdminSignupEmailStep";
+import AdminSignupComplete from "./pages/school/AdminSignupComplete";
+import AdminDashboard from "./pages/school/AdminDashboard";
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
         {/* PUBLIC LOGIN ROUTE */}
-        <Route path="/" element={<LoginPage />} />
+        <Route path="/" element={<AdminSignupEmailStep />} />
+        <Route path="/signup/complete" element={<AdminSignupComplete />} />
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
+
+
+
+
+        <Route path="/superadmin/login" element={<LoginPage />} />
 
         {/* PROTECTED SUPERADMIN AREA */}
         <Route

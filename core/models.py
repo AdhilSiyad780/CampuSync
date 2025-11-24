@@ -1,24 +1,31 @@
 from django.db import models
 from django.contrib.auth.models import BaseUserManager,AbstractBaseUser,PermissionsMixin
+from django.db import models
+from django.utils import timezone
+from datetime import timedelta
+
 # Create your models here.
 class Tenant(models.Model):
-    tenent_id = models.CharField(max_length=255,unique=True)
-    isinstance_name = models.CharField(max_length=255)
+    tenant_id = models.CharField(max_length=255, unique=True)
+    instance_name = models.CharField(max_length=255)
     email = models.CharField(max_length=255)
     phone = models.CharField(max_length=50)
-    address  = models.TextField(null=True,blank=True)
-    status = models.CharField(max_length=20,choices=[
-          ("active", "Active"),
+    address = models.TextField(null=True, blank=True)
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ("active", "Active"),
             ("inactive", "Inactive"),
             ("suspended", "Suspended"),
             ("trial", "Trial"),
-    ]
-    ,default='trial')
-    reated_at = models.DateTimeField(auto_now_add=True)
+        ],
+        default="trial"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.institute_name
+        return self.instance_name
 
 class UserManager(BaseUserManager):
     def create_user(self,email,password=None,**extar_fields):
@@ -82,3 +89,21 @@ class User(AbstractBaseUser,PermissionsMixin):
     REQUIRED_FIELDS = ['fullname']
     def __str__(self):
         return self.email 
+
+
+
+class OTPVerification(models.Model):
+    class Purpose(models.TextChoices):
+        ADMIN_SIGNUP = "ADMIN_SIGNUP", "Admin Signup"
+
+    email = models.EmailField()
+    otp = models.CharField(max_length=6)
+    purpose = models.CharField(max_length=50, choices=Purpose.choices)
+    is_used = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    signup_token = models.CharField(max_length=64, null=True, blank=True)  
+    def save(self, *args, **kwargs):
+        if not self.expires_at:
+            self.expires_at = timezone.now() + timedelta(minutes=5)
+        super().save(*args, **kwargs)
