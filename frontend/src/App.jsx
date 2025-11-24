@@ -1,34 +1,42 @@
+// frontend/src/App.jsx
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import SuperAdminLogin from "./pages/SuperAdminLogin";
+import Layout from "./componets/Layout";
+import SuperAdminProfile from "./pages/SuperAdminProfile";
 import SubscriptionPlans from "./pages/SubscriptionPlans";
-import Dashboard from "./pages/Dashboard.jsx";
 import ProtectedRoute from "./componets/ProtectedRoute";
+import LoginPage from "./pages/SuperAdminLogin";
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* PUBLIC LOGIN ROUTE */}
+        <Route path="/" element={<LoginPage />} />
 
-        <Route path="/" element={<SuperAdminLogin />} />
-
+        {/* PROTECTED SUPERADMIN AREA */}
         <Route
-          path="/subscriptions/plans"
+          path="/superadmin"
           element={
             <ProtectedRoute>
-              <SubscriptionPlans />
+              <Layout />
             </ProtectedRoute>
           }
-        />
+        >
+          {/* /superadmin  -> profile by default */}
+          <Route index element={<SuperAdminProfile />} />
 
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          }
-        />
+          {/* /superadmin/profile */}
+          <Route path="profile" element={<SuperAdminProfile />} />
 
+          {/* /superadmin/subscriptions/plans */}
+          <Route path="subscriptions/plans" element={<SubscriptionPlans />} />
+
+          {/* /superadmin/dashboard */}
+          <Route path="dashboard" element={<div>Dashboard coming soon</div>} />
+
+          {/* /superadmin/tenants */}
+          <Route path="tenants" element={<div>Tenants coming soon</div>} />
+        </Route>
       </Routes>
     </BrowserRouter>
   );

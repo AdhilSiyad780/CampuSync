@@ -14,3 +14,7 @@ class SubscriptionPlanCreateView(generics.CreateAPIView):
     queryset = SubscriptionPlan.objects.all()
     serializer_class = SubscriptionPlanSerializer
     permission_classes = [IsAuthenticated, IsSuperAdmin]
+
+class SubscriptionPlanUpdateAPIView(generics.RetrieveUpdateAPIView):
+    queryset = SubscriptionPlan.objects.all()
+    serializer_class = SubscriptionPlanSerializer

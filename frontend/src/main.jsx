@@ -1,10 +1,29 @@
-import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
-import "./index.css";
-import App from "./App.jsx";
+import React, { useEffect } from "react";
+import ReactDOM from "react-dom/client";
+import { Provider, useSelector } from "react-redux";
+import { store } from "./store/store";
+import App from "./App";
+import "./index.css"; // make sure global styles are imported
 
-createRoot(document.getElementById("root")).render(
-  <StrictMode>
-    <App />
-  </StrictMode>
+function ThemeSyncWrapper() {
+  const darkMode = useSelector((state) => state.theme.darkMode);
+
+  useEffect(() => {
+    // Tailwind dark mode: add/remove .dark on <html>
+    if (darkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [darkMode]);
+
+  return <App />;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <React.StrictMode>
+    <Provider store={store}>
+      <ThemeSyncWrapper />
+    </Provider>
+  </React.StrictMode>
 );

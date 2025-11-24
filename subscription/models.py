@@ -2,16 +2,16 @@ from django.db import models
 from core.models import Tenant
 # Create your models here.
 class SubscriptionPlan(models.Model):
-    PLAN_CHOICES = [
-        ("trial", "20-Day Trial"),
-        ("monthly", "Monthly Plan"),
-        ("half_yearly", "6-Month Plan"),
-        ("yearly", "Yearly Plan"),
-    ]
-    plan_name = models.CharField(max_length=50, choices=PLAN_CHOICES)
+  
+    plan_name = models.CharField(max_length=50)
     description = models.TextField(blank=True)
     duration_days = models.PositiveIntegerField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
+
+    max_students = models.PositiveIntegerField(null=True, blank=True)
+    max_teachers = models.PositiveIntegerField(null=True, blank=True)
+    max_admins = models.PositiveIntegerField(null=True, blank=True)
+    
     features = models.JSONField(default=list)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

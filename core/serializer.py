@@ -28,5 +28,23 @@ class SuperAdminLoginSerializer(serializers.Serializer):
                 'user_type':user.user_type
             }
         }
+    
+class SuperAdminProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "fullname",
+            "email",
+            "profile_picture",
+            "last_login"
+        ]
+        read_only_fields = ["email", "last_login"]
+
+class SuperAdminProfileUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ["fullname", "profile_picture"]
+
 
         
