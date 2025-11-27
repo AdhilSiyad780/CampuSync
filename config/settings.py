@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -161,3 +162,7 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = "campusync2015@gmail.com"
 EMAIL_HOST_PASSWORD = "ycxh gefx ljpi vqxz"  # NOT your normal Gmail password
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+
+
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "850618894030-doc6p0ik890tec8rabi7dq6s3tp5forv.apps.googleusercontent.com")

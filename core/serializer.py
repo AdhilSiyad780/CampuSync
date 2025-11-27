@@ -181,8 +181,12 @@ class AdminSignupSerializer(serializers.Serializer):
             status="active",
             is_staff=True,
         )
+        otp_obj.is_used = True
+        otp_obj.save(update_fields=["is_used"])
 
-
+        user.is_setup_complete = True
+        user.save(update_fields=["is_setup_complete"])
+          
         otp_obj.signup_token = None
         otp_obj.save(update_fields=["signup_token"])
 
@@ -233,4 +237,61 @@ class AdminVerifyOTPSerializer(serializers.Serializer):
         return {
           "email": otp_obj.email,
           "signup_token": signup_token,
+        }
+
+
+class GoogleAuthSerializer(serializers.Serializer):
+    credential = serializers.CharField()
+
+
+
+class AdminLoginSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
+    
+    def validate(self, attrs):
+        email = attrs.get("email")
+        password = attrs.get("password")
+
+        if not email or not password:
+            raise serializers.ValidationError("Email and password are required.")
+
+        # authenticate() will work if AUTH_USER_MODEL + AUTHENTICATION_BACKENDS are set correctly
+        user = authenticate(email=email, password=password)
+
+        if not user:
+            raise serializers.ValidationError("Invalid email or password.")
+
+        if user.user_type != "admin":
+            raise serializers.ValidationError("This account is not an admin account.")
+
+        if user.status != "active":
+            raise serializers.ValidationError("Your account is not active.")
+
+        # Generate JWT pair
+        refresh = RefreshToken.for_user(user)
+        access = refresh.access_token
+
+        tenant = getattr(user, "tenant", None)
+
+        return {
+            "access": str(access),
+            "refresh": str(refresh),
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "fullname": user.fullname,
+                "user_type": user.user_type,
+                "is_setup_complete": getattr(user, "is_setup_complete", False),
+            },
+            "tenant": {
+                "id": tenant.id,
+                "tenant_id": tenant.tenant_id,
+                "instance_name": tenant.instance_name,
+                "email": tenant.email,
+                "phone": tenant.phone,
+                "address": tenant.address,
+                "status": tenant.status,
+            } if tenant else None,
+            "needs_setup": not getattr(user, "is_setup_complete", False),
         }

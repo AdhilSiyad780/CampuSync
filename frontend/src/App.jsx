@@ -8,6 +8,7 @@ import LoginPage from "./pages/SuperAdminLogin";
 import AdminSignupEmailStep from "./pages/school/AdminSignupEmailStep";
 import AdminSignupComplete from "./pages/school/AdminSignupComplete";
 import AdminDashboard from "./pages/school/AdminDashboard";
+import AdminLoginPage from "./pages/school/AdminLoginPage";
 export default function App() {
   return (
     <BrowserRouter>
@@ -16,7 +17,8 @@ export default function App() {
         <Route path="/" element={<AdminSignupEmailStep />} />
         <Route path="/signup/complete" element={<AdminSignupComplete />} />
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
-
+        <Route path="/login" element={<AdminLoginPage />} />
+   
 
 
 

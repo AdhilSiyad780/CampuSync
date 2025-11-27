@@ -1,10 +1,14 @@
 // frontend/src/pages/school/AdminSignupEmailStep.jsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { GoogleLogin } from "@react-oauth/google";
+import { Link } from "react-router-dom";
 import api from "../../api/axios";
 
 function AdminSignupEmailStep() {
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [otp, setOtp] = useState("");
   const [isOtpSent, setIsOtpSent] = useState(false);
 
@@ -14,19 +18,37 @@ function AdminSignupEmailStep() {
 
   const navigate = useNavigate();
 
+  // STEP 1: EMAIL + PASSWORD -> SEND OTP
   const handleSendOtp = async (e) => {
     e.preventDefault();
     setErrorMsg("");
     setSuccessMsg("");
 
-    if (!email.trim()) {
-      setErrorMsg("Email is required");
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail) {
+      setErrorMsg("Email is required.");
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.trim())) {
-      setErrorMsg("Enter a valid email");
+    if (!emailRegex.test(trimmedEmail)) {
+      setErrorMsg("Enter a valid email.");
+      return;
+    }
+
+    if (!password.trim()) {
+      setErrorMsg("Password is required.");
+      return;
+    }
+
+    if (password.length < 6) {
+      setErrorMsg("Password must be at least 6 characters.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setErrorMsg("Passwords do not match.");
       return;
     }
 
@@ -34,11 +56,11 @@ function AdminSignupEmailStep() {
       setLoading(true);
 
       await api.post("/signup/send-otp/", {
-        email: email.trim(),
+        email: trimmedEmail,
       });
 
       setIsOtpSent(true);
-      setSuccessMsg("OTP has been sent to your email (valid for few minutes).");
+      setSuccessMsg("OTP has been sent to your email (valid for a few minutes).");
     } catch (err) {
       console.error(err);
       if (err.response?.data?.email) {
@@ -53,12 +75,16 @@ function AdminSignupEmailStep() {
     }
   };
 
+  // STEP 2: EMAIL + OTP -> VERIFY OTP -> GO TO REGISTRATION PAGE
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
     setErrorMsg("");
     setSuccessMsg("");
 
-    if (!email.trim() || !otp.trim()) {
+    const trimmedEmail = email.trim();
+    const trimmedOtp = otp.trim();
+
+    if (!trimmedEmail || !trimmedOtp) {
       setErrorMsg("Email and OTP are required.");
       return;
     }
@@ -67,18 +93,23 @@ function AdminSignupEmailStep() {
       setLoading(true);
 
       const res = await api.post("/signup/verify-otp/", {
-        email: email.trim(),
-        otp: otp.trim(),
-        
+        email: trimmedEmail,
+        otp: trimmedOtp,
       });
 
       const { signup_token } = res.data;
 
       setSuccessMsg("OTP verified successfully.");
 
-      // Go to details page, pass email + signupToken
-      navigate("signup/complete", {
-        state: { email: email.trim(), signupToken: signup_token },
+      // Go to registration (complete) page
+      navigate("/signup/complete", {
+        state: {
+          email: trimmedEmail,
+          signupToken: signup_token,
+          password,
+          confirmPassword,
+          fromGoogle: false,
+        },
       });
     } catch (err) {
       console.error(err);
@@ -87,9 +118,10 @@ function AdminSignupEmailStep() {
       } else if (typeof err.response?.data === "string") {
         setErrorMsg(err.response.data);
       } else {
-        const firstKey = err.response && Object.keys(err.response.data)[0];
-        if (firstKey && Array.isArray(err.response.data[firstKey])) {
-          setErrorMsg(err.response.data[firstKey][0]);
+        const data = err.response?.data;
+        const firstKey = data && Object.keys(data)[0];
+        if (firstKey && Array.isArray(data[firstKey])) {
+          setErrorMsg(data[firstKey][0]);
         } else {
           setErrorMsg("OTP verification failed. Check email/OTP.");
         }
@@ -99,6 +131,50 @@ function AdminSignupEmailStep() {
     }
   };
 
+  // GOOGLE HANDLERS
+  const handleGoogleSuccess = async (credentialResponse) => {
+    setErrorMsg("");
+    setSuccessMsg("");
+    try {
+      setLoading(true);
+
+      const res = await api.post("/auth/google-login/", {
+        credential: credentialResponse.credential,
+      });
+
+      // store JWTs
+      localStorage.setItem("access", res.data.access);
+      localStorage.setItem("refresh", res.data.refresh);
+
+      const user = res.data.user || {};
+      const emailFromGoogle = user.email || "";
+      const fullnameFromGoogle = user.fullname || "";
+
+      // Go to registration page (no password needed for Google)
+      navigate("/signup/complete", {
+        state: {
+          fromGoogle: true,
+          email: emailFromGoogle,
+          fullname: fullnameFromGoogle,
+        },
+      });
+    } catch (err) {
+      console.error(err);
+      console.log("GOOGLE LOGIN ERROR DATA:", err.response?.data);
+      setErrorMsg(
+        err.response?.data?.detail || "Google login failed. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    setErrorMsg("Google login was cancelled or failed.");
+  };
+
+  const isSubmitting = loading;
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100">
       <div className="w-full max-w-md bg-white shadow-md rounded-xl p-6 sm:p-8">
@@ -106,14 +182,15 @@ function AdminSignupEmailStep() {
           Admin Signup
         </h2>
         <p className="text-sm text-slate-500 text-center mb-6">
-          Enter your email to receive an OTP, then verify it to continue.
+          Create your account with email + password or use Google.  
+          For email, verify with OTP before completing registration.
         </p>
 
         <form
           onSubmit={isOtpSent ? handleVerifyOtp : handleSendOtp}
           className="space-y-4"
         >
-          {/* Email input */}
+          {/* Email */}
           <div>
             <label
               htmlFor="email"
@@ -128,7 +205,45 @@ function AdminSignupEmailStep() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-              disabled={isOtpSent} // lock after OTP sent
+              disabled={isOtpSent}
+            />
+          </div>
+
+          {/* Password */}
+          <div>
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-slate-700 mb-1"
+            >
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              placeholder="Create password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+              disabled={isOtpSent}
+            />
+          </div>
+
+          {/* Confirm Password */}
+          <div>
+            <label
+              htmlFor="confirm_password"
+              className="block text-sm font-medium text-slate-700 mb-1"
+            >
+              Confirm Password
+            </label>
+            <input
+              id="confirm_password"
+              type="password"
+              placeholder="Confirm password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+              disabled={isOtpSent}
             />
           </div>
 
@@ -150,7 +265,8 @@ function AdminSignupEmailStep() {
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
               />
               <p className="text-xs text-slate-400 mt-1">
-                Haven&apos;t received it? Check spam or resend after some time (you can add resend later).
+                Haven&apos;t received it? Check spam or resend later (you can add
+                resend logic later).
               </p>
             </div>
           )}
@@ -169,10 +285,10 @@ function AdminSignupEmailStep() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={isSubmitting}
             className="w-full inline-flex items-center justify-center rounded-lg bg-blue-600 text-white text-sm font-medium py-2.5 mt-2 disabled:opacity-70 disabled:cursor-not-allowed hover:bg-blue-700 transition"
           >
-            {loading
+            {isSubmitting
               ? isOtpSent
                 ? "Verifying OTP..."
                 : "Sending OTP..."
@@ -181,6 +297,32 @@ function AdminSignupEmailStep() {
               : "Send OTP"}
           </button>
         </form>
+
+        {/* Divider */}
+        <div className="flex items-center gap-3 my-6">
+          <div className="flex-1 h-px bg-slate-200" />
+          <span className="text-xs text-slate-400 uppercase tracking-wide">
+            Or
+          </span>
+          <div className="flex-1 h-px bg-slate-200" />
+        </div>
+
+        {/* Google Login */}
+        <div className="flex justify-center">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={handleGoogleError}
+          />
+        </div>
+         <div className="mt-4 text-center text-xs text-slate-500">
+          <span>Already have an account? </span>
+          <Link
+            to="/login"
+            className="text-blue-600 hover:underline font-medium"
+          >
+            Login
+          </Link>
+        </div>
       </div>
     </div>
   );
