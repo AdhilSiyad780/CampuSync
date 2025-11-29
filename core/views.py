@@ -59,7 +59,6 @@ class AdminSignupSendOTPView(APIView):
             status=status.HTTP_200_OK,
         )
     
-
 class AdminSignupView(APIView):
     permission_classes = [AllowAny]
 
@@ -68,10 +67,8 @@ class AdminSignupView(APIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
 
-        # Auto-login
         refresh = RefreshToken.for_user(user)
         access = refresh.access_token
-
         tenant = user.tenant
 
         data = {
@@ -82,6 +79,7 @@ class AdminSignupView(APIView):
                 "email": user.email,
                 "fullname": user.fullname,
                 "user_type": user.user_type,
+                "is_setup_complete": user.is_setup_complete,
             },
             "tenant": {
                 "id": tenant.id,
@@ -91,22 +89,52 @@ class AdminSignupView(APIView):
                 "phone": tenant.phone,
                 "address": tenant.address,
                 "status": tenant.status,
-            } if tenant else None,  
+            } if tenant else None,
         }
 
-        return Response(data, status=status.HTTP_201_CREATED)
-
+        return Response(data, status=status.HTTP_200_OK)
 
 
 class AdminVerifyOTPView(APIView):
     permission_classes = [AllowAny]
+    authentication_classes = []
 
     def post(self, request):
         serializer = AdminVerifyOTPSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.save()
         return Response(
-            {"detail": "OTP verified successfully.", **data},
+            {"detail": "OTP verified and account created.", **data},
+            status=status.HTTP_201_CREATED,
+        )
+
+
+from django.utils import timezone
+
+class AdminSignupSendOTPView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = AdminSignupSendOTPSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        otp_obj = serializer.save()  # <-- use save(), get otp_obj
+
+        # how many seconds until expiry
+        expires_in = 0
+        if getattr(otp_obj, "expires_at", None):
+            expires_in = max(
+                int((otp_obj.expires_at - timezone.now()).total_seconds()),
+                0
+            )
+        else:
+            # fallback if you somehow don't set expires_at; assume 5 mins
+            expires_in = 5 * 60
+
+        return Response(
+            {
+                "detail": "OTP sent to email if it is valid.",
+                "expires_in": expires_in,
+            },
             status=status.HTTP_200_OK,
         )
 
@@ -197,6 +225,8 @@ class GoogleAuthView(APIView):
 
 class AdminLoginView(APIView):
     permission_classes = [AllowAny]
+    authentication_classes = []
+
 
     def post(self, request):
         serializer = AdminLoginSerializer(data=request.data)

@@ -35,7 +35,7 @@ export default function SubscriptionPlans() {
     } catch (err) {
       if (err.response?.status === 401) {
         localStorage.removeItem("access");
-        navigate("/");
+        navigate("/superadmin/login");
       }
       setError("Failed to load plans");
     }

@@ -93,20 +93,13 @@ class AdminSignupSendOTPSerializer(serializers.Serializer):
         send_mail(subject, message, from_email, [email], fail_silently=False)
 
         return otp_obj
-
-
 class AdminSignupSerializer(serializers.Serializer):
-    # ✅ No OTP here. We use signup_token from verify-otp step
     email = serializers.EmailField()
     signup_token = serializers.CharField(max_length=64)
 
-    # Admin user data
     fullname = serializers.CharField(max_length=255)
-    password = serializers.CharField(write_only=True)
-    confirm_password = serializers.CharField(write_only=True)
     phone = serializers.CharField(max_length=50, required=False, allow_blank=True)
 
-    # Tenant (school/institute) data
     instance_name = serializers.CharField(max_length=255)
     tenant_email = serializers.EmailField()
     tenant_phone = serializers.CharField(max_length=50)
@@ -116,7 +109,7 @@ class AdminSignupSerializer(serializers.Serializer):
         email = attrs.get("email")
         signup_token = attrs.get("signup_token")
 
-        # 1) Check verified OTP exists for this email + token
+        # OTP object that carries the signup_token
         otp_obj = (
             OTPVerification.objects.filter(
                 email=email,
@@ -128,37 +121,35 @@ class AdminSignupSerializer(serializers.Serializer):
         )
 
         if not otp_obj:
-            raise serializers.ValidationError("Email is not verified or token is invalid.")
+            raise serializers.ValidationError("Signup token is invalid or expired.")
 
-        # Optional: limit how long after verification signup can be completed
         from datetime import timedelta
         if otp_obj.created_at < timezone.now() - timedelta(minutes=30):
             raise serializers.ValidationError("Signup session expired. Please verify OTP again.")
 
-        # 2) Password check
-        if attrs["password"] != attrs["confirm_password"]:
-            raise serializers.ValidationError("Passwords do not match.")
+        # User MUST already exist (created at verify-otp step)
+        try:
+            user = User.objects.get(email__iexact=email, user_type="admin")
+        except User.DoesNotExist:
+            raise serializers.ValidationError("Admin user not found. Please verify OTP again.")
 
-        # 3) Email uniqueness safety
-        if User.objects.filter(email__iexact=email).exists():
-            raise serializers.ValidationError("An account with this email already exists.")
+        if getattr(user, "is_setup_complete", False):
+            raise serializers.ValidationError("Setup already completed for this account.")
 
-        # Pass otp_obj to create()
         attrs["otp_obj"] = otp_obj
+        attrs["user"] = user
         return attrs
 
     def create(self, validated_data):
-        otp_obj = validated_data.pop("otp_obj")
-
-        email = validated_data["email"]
-        fullname = validated_data["fullname"]
-        password = validated_data["password"]
-        phone = validated_data.get("phone", "")
+        otp_obj = validated_data["otp_obj"]
+        user = validated_data["user"]
 
         instance_name = validated_data["instance_name"]
         tenant_email = validated_data["tenant_email"]
         tenant_phone = validated_data["tenant_phone"]
         tenant_address = validated_data.get("tenant_address", "")
+        fullname = validated_data["fullname"]
+        phone = validated_data.get("phone", "")
 
         # 1) Create Tenant
         tenant = Tenant.objects.create(
@@ -170,40 +161,33 @@ class AdminSignupSerializer(serializers.Serializer):
             status="trial",
         )
 
-        # 2) Create Admin user linked to Tenant
-        user = User.objects.create_user(
-            email=email,
-            password=password,
-            fullname=fullname,
-            phone=phone,
-            tenant=tenant,
-            user_type="admin",
-            status="active",
-            is_staff=True,
-        )
-        otp_obj.is_used = True
-        otp_obj.save(update_fields=["is_used"])
-
+        # 2) Update existing user with tenant + profile
+        user.fullname = fullname
+        user.phone = phone
+        user.tenant = tenant
         user.is_setup_complete = True
-        user.save(update_fields=["is_setup_complete"])
-          
+        user.save(update_fields=["fullname", "phone", "tenant", "is_setup_complete"])
+
+        # 3) Clear signup_token
         otp_obj.signup_token = None
         otp_obj.save(update_fields=["signup_token"])
 
         return user
 
 
-
-
-
 class AdminVerifyOTPSerializer(serializers.Serializer):
     email = serializers.EmailField()
     otp = serializers.CharField(max_length=6)
+    password = serializers.CharField(write_only=True)
+    confirm_password = serializers.CharField(write_only=True)
 
     def validate(self, attrs):
         email = attrs.get("email")
         otp = attrs.get("otp")
+        password = attrs.get("password")
+        confirm_password = attrs.get("confirm_password")
 
+        # 1) Find OTP
         otp_obj = (
             OTPVerification.objects.filter(
                 email=email,
@@ -223,21 +207,69 @@ class AdminVerifyOTPSerializer(serializers.Serializer):
         if otp_obj.otp != otp:
             raise serializers.ValidationError("Invalid OTP.")
 
+        # 2) Password checks
+        if password != confirm_password:
+            raise serializers.ValidationError("Passwords do not match.")
+
+        # 3) Email must not already have an account
+        if User.objects.filter(email__iexact=email).exists():
+            raise serializers.ValidationError("An account with this email already exists.")
+
         attrs["otp_obj"] = otp_obj
         return attrs
 
     def create(self, validated_data):
         otp_obj = validated_data["otp_obj"]
-        signup_token = uuid.uuid4().hex
+        email = validated_data["email"]
+        password = validated_data["password"]
 
+        # Create user here – minimal admin
+        user = User.objects.create_user(
+            email=email,
+            password=password,
+            fullname="",          # can be filled later
+            user_type="admin",
+            status="active",
+            is_staff=True,
+        )
+        user.is_setup_complete = False
+        user.save(update_fields=["is_setup_complete"])
+
+        # mark OTP used
         otp_obj.is_used = True
+        # optional: keep a token as a session reference for step 2 (or drop it)
+        signup_token = uuid.uuid4().hex
         otp_obj.signup_token = signup_token
         otp_obj.save(update_fields=["is_used", "signup_token"])
 
+        # Issue JWT right here so user is actually logged in
+        refresh = RefreshToken.for_user(user)
+        access = refresh.access_token
+
         return {
-          "email": otp_obj.email,
-          "signup_token": signup_token,
+            "email": user.email,
+            "signup_token": signup_token,
+            "access": str(access),
+            "refresh": str(refresh),
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "fullname": user.fullname,
+                "user_type": user.user_type,
+                "is_setup_complete": user.is_setup_complete,
+            },
         }
+
+
+
+
+
+
+
+
+
+
+
 
 
 class GoogleAuthSerializer(serializers.Serializer):
@@ -258,6 +290,7 @@ class AdminLoginSerializer(serializers.Serializer):
 
         # authenticate() will work if AUTH_USER_MODEL + AUTHENTICATION_BACKENDS are set correctly
         user = authenticate(email=email, password=password)
+        print('this is the user',user)
 
         if not user:
             raise serializers.ValidationError("Invalid email or password.")

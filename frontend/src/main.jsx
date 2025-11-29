@@ -24,7 +24,7 @@ function ThemeSyncWrapper() {
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <Provider store={store}>
-      <GoogleOAuthProvider clientId='850618894030-doc6p0ik890tec8rabi7dq6s3tp5forv.apps.googleusercontent.com' >
+      <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID} >
             <ThemeSyncWrapper />
 
       </GoogleOAuthProvider>

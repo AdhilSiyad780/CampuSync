@@ -1,8 +1,7 @@
 // frontend/src/pages/school/AdminSignupEmailStep.jsx
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
-import { Link } from "react-router-dom";
 import api from "../../api/axios";
 
 function AdminSignupEmailStep() {
@@ -11,10 +10,14 @@ function AdminSignupEmailStep() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [otp, setOtp] = useState("");
   const [isOtpSent, setIsOtpSent] = useState(false);
-
+  
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+
+  // OTP timer
+  const [otpExpiresIn, setOtpExpiresIn] = useState(null); // seconds from backend
+  const [timeLeft, setTimeLeft] = useState(0);            // seconds counting down
 
   const navigate = useNavigate();
 
@@ -55,12 +58,19 @@ function AdminSignupEmailStep() {
     try {
       setLoading(true);
 
-      await api.post("/signup/send-otp/", {
+      const res = await api.post("/signup/send-otp/", {
         email: trimmedEmail,
       });
 
       setIsOtpSent(true);
-      setSuccessMsg("OTP has been sent to your email (valid for a few minutes).");
+      setSuccessMsg(
+        "OTP has been sent to your email (valid for a few minutes)."
+      );
+
+      // backend should optionally send { expires_in: seconds }
+      const expires = res.data?.expires_in ?? 300; // default 5 minutes
+      setOtpExpiresIn(expires);
+      setTimeLeft(expires);
     } catch (err) {
       console.error(err);
       if (err.response?.data?.email) {
@@ -94,6 +104,8 @@ function AdminSignupEmailStep() {
 
       const res = await api.post("/signup/verify-otp/", {
         email: trimmedEmail,
+        password: password,
+        confirm_password: confirmPassword,
         otp: trimmedOtp,
       });
 
@@ -106,8 +118,6 @@ function AdminSignupEmailStep() {
         state: {
           email: trimmedEmail,
           signupToken: signup_token,
-          password,
-          confirmPassword,
           fromGoogle: false,
         },
       });
@@ -173,7 +183,70 @@ function AdminSignupEmailStep() {
     setErrorMsg("Google login was cancelled or failed.");
   };
 
+  // COUNTDOWN EFFECT
+  useEffect(() => {
+    if (!isOtpSent || otpExpiresIn == null) return;
+
+    setTimeLeft(otpExpiresIn);
+
+    const interval = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isOtpSent, otpExpiresIn]);
+
+  // RESEND OTP
+  const handleResendOtp = async () => {
+    setErrorMsg("");
+    setSuccessMsg("");
+
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setErrorMsg("Email is missing.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const res = await api.post("/signup/send-otp/", {
+        email: trimmedEmail,
+      });
+
+      setSuccessMsg("A new OTP has been sent to your email.");
+      const expires = res.data?.expires_in ?? 300;
+      setOtpExpiresIn(expires);
+      setTimeLeft(expires);
+    } catch (err) {
+      console.error(err);
+      if (err.response?.data?.email) {
+        setErrorMsg(err.response.data.email[0]);
+      } else if (err.response?.data?.detail) {
+        setErrorMsg(err.response.data.detail);
+      } else {
+        setErrorMsg("Could not resend OTP. Please try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const isSubmitting = loading;
+
+  // helper: format seconds to mm:ss
+  const formatTime = (seconds) => {
+    const m = Math.floor(seconds / 60)
+      .toString()
+      .padStart(2, "0");
+    const s = (seconds % 60).toString().padStart(2, "0");
+    return `${m}:${s}`;
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100">
@@ -182,8 +255,8 @@ function AdminSignupEmailStep() {
           Admin Signup
         </h2>
         <p className="text-sm text-slate-500 text-center mb-6">
-          Create your account with email + password or use Google.  
-          For email, verify with OTP before completing registration.
+          Create your account with email + password or use Google. For email,
+          verify with OTP before completing registration.
         </p>
 
         <form
@@ -264,10 +337,24 @@ function AdminSignupEmailStep() {
                 onChange={(e) => setOtp(e.target.value)}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
               />
-              <p className="text-xs text-slate-400 mt-1">
-                Haven&apos;t received it? Check spam or resend later (you can add
-                resend logic later).
-              </p>
+
+              {/* Timer + Resend section */}
+              <div className="flex items-center justify-between mt-2 text-xs">
+                <span className="text-slate-500">
+                  {timeLeft > 0
+                    ? `OTP expires in ${formatTime(timeLeft)}`
+                    : "OTP expired."}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={handleResendOtp}
+                  disabled={timeLeft > 0 || loading}
+                  className={`text-blue-600 font-medium hover:underline disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  Resend OTP
+                </button>
+              </div>
             </div>
           )}
 
@@ -314,12 +401,10 @@ function AdminSignupEmailStep() {
             onError={handleGoogleError}
           />
         </div>
-         <div className="mt-4 text-center text-xs text-slate-500">
+
+        <div className="mt-4 text-center text-xs text-slate-500">
           <span>Already have an account? </span>
-          <Link
-            to="/login"
-            className="text-blue-600 hover:underline font-medium"
-          >
+          <Link to="/login" className="text-blue-600 hover:underline font-medium">
             Login
           </Link>
         </div>

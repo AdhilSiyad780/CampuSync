@@ -45,7 +45,7 @@ function AdminLoginPage() {
         });
       } else {
         // existing fully-setup user -> go straight to dashboard
-        navigate("/admin/dashboard");
+        navigate("/dashboard");
       }
     } catch (err) {
       console.error(err);
@@ -78,7 +78,7 @@ function AdminLoginPage() {
     try {
       setLoading(true);
 
-      const res = await api.post("/admin/login/", {
+      const res = await api.post("/login/", {
         email: trimmedEmail,
         password,
       });
@@ -107,7 +107,7 @@ function AdminLoginPage() {
         });
       } else {
         // normal case → go to dashboard
-        navigate("/admin/dashboard");
+        navigate("/dashboard");
       }
     } catch (err) {
       console.error(err);

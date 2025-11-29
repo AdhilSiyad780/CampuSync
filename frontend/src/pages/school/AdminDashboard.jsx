@@ -1,8 +1,30 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Menu, X, Users, School, UserCog, BookOpen } from "lucide-react";
+import api from "../../api/axios";
 
 export default function AdminDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [plans,setPlans] = useState([])
+
+  useEffect(()=>{
+     LoadPlans();
+  },[])
+  const LoadPlans = async ()=>{
+       try {
+        const res = await api.get('subscriptions/plans/')
+        
+       } catch (err) {
+         if (err.response?.status === 401) {
+        localStorage.removeItem("access");
+        navigate("/superadmin/login");
+      }
+      setError("Failed to load plans");
+
+       }
+  }
+
+
+
 
   return (
     <div className="flex min-h-screen bg-slate-100">

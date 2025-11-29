@@ -131,7 +131,7 @@ function AdminSignupComplete() {
 
       console.log("Signup / setup success:", res.data);
       setSuccessMsg("Registration completed successfully.");
-      navigate("/admin/dashboard");
+      navigate("/dashboard");
     } catch (err) {
       console.error(err);
       const data = err.response?.data;
@@ -304,7 +304,7 @@ function AdminSignupComplete() {
         </form>
          <button
       type="button"
-      onClick={() => navigate("/admin/dashboard")}
+      onClick={() => navigate("/dashboard")}
       className="w-full mt-3 inline-flex items-center justify-center rounded-lg bg-slate-200 text-slate-800 text-sm font-medium py-2.5 hover:bg-slate-300 transition"
     >
       Skip for now

@@ -16,7 +16,7 @@ export default function App() {
         {/* PUBLIC LOGIN ROUTE */}
         <Route path="/" element={<AdminSignupEmailStep />} />
         <Route path="/signup/complete" element={<AdminSignupComplete />} />
-        <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        <Route path="/dashboard" element={<AdminDashboard />} />
         <Route path="/login" element={<AdminLoginPage />} />
    
 
