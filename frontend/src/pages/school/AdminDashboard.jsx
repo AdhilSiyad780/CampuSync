@@ -1,34 +1,107 @@
+// frontend/src/pages/school/AdminDashboard.jsx
 import { useEffect, useState } from "react";
 import { Menu, X, Users, School, UserCog, BookOpen } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import api from "../../api/axios";
 
 export default function AdminDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [plans,setPlans] = useState([])
+  const [plans, setPlans] = useState([]);
+  const [tenantSummary, setTenantSummary] = useState(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  useEffect(()=>{
-     LoadPlans();
-  },[])
-  const LoadPlans = async ()=>{
-       try {
-        const res = await api.get('subscriptions/plans/')
-        
-       } catch (err) {
-         if (err.response?.status === 401) {
-        localStorage.removeItem("access");
-        navigate("/superadmin/login");
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const init = async () => {
+      try {
+        // load both plans and tenant summary in parallel
+        await Promise.all([loadPlans(), loadTenantSummary()]);
+      } finally {
+        setLoading(false);
       }
-      setError("Failed to load plans");
+    };
+    init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-       }
+  const loadPlans = async () => {
+    try {
+      const res = await api.get("subscriptions/plans/");
+      setPlans(res.data || []);
+    } catch (err) {
+      console.error("LOAD PLANS ERROR:", err.response?.data || err.message);
+      // Auth/permission errors -> redirect to login
+      const status = err.response?.status;
+      if (status === 401) {
+        localStorage.removeItem("access");
+        navigate("/login");
+        return;
+      }
+      if (status === 403) {
+        // user authenticated but not permitted — show message but don't crash
+        setError("You don't have permission to view subscription plans.");
+        return;
+      }
+      setError("Failed to load subscription plans.");
+    }
+  };
+
+  const loadTenantSummary = async () => {
+    try {
+      const res = await api.get("subscriptions/tenant-summary/");
+      setTenantSummary(res.data || null);
+    } catch (err) {
+      console.error(
+        "LOAD TENANT SUMMARY ERROR:",
+        err.response?.data || err.message
+      );
+      const status = err.response?.status;
+      if (status === 401) {
+        localStorage.removeItem("access");
+        navigate("/login");
+        return;
+      }
+      // tenant-summary might not exist on backend yet — just show plans and a message
+      setError((prev) =>
+        prev
+          ? prev
+          : "Could not load tenant subscription details. You may need to finish setup."
+      );
+    }
+  };
+
+  // derived values
+  const currentPlan = tenantSummary?.current_plan || null;
+  const counts = tenantSummary?.counts || { students: 0, teachers: 0, staff: 0 };
+
+  const isTrial =
+    !!currentPlan &&
+    (currentPlan.is_trial || (currentPlan.name || "").toLowerCase() === "trial");
+
+  // fallback days-left calculation if backend didn't send days_left
+  let daysLeft = currentPlan?.days_left;
+  if (
+    (daysLeft === undefined || daysLeft === null) &&
+    currentPlan?.expires_at
+  ) {
+    const now = new Date();
+    const exp = new Date(currentPlan.expires_at);
+    const diffMs = exp - now;
+    daysLeft = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
   }
 
-
-
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-100">
+        <p className="text-slate-600 text-sm">Loading dashboard...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-slate-100">
-
       {/* SIDEBAR */}
       <div
         className={`${
@@ -72,7 +145,6 @@ export default function AdminDashboard() {
 
       {/* MAIN CONTENT */}
       <div className="flex-1 p-6">
-
         {/* TOPBAR */}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-semibold text-slate-800">Dashboard</h2>
@@ -87,21 +159,118 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* STAT CARDS */}
+        {error && (
+          <p className="mb-4 text-sm text-red-600 bg-red-50 border border-red-100 rounded-md px-3 py-2">
+            {error} 
+          </p>
+        )}
+
+        {/* CURRENT PLAN + TRIAL INFO */}
+        {currentPlan ? (
+          <div
+            className={`mb-6 rounded-xl border px-5 py-4 ${
+              isTrial ? "bg-amber-50 border-amber-200" : "bg-blue-50 border-blue-200"
+            }`}
+          >
+            <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+              Current Plan:{" "}
+              <span className="text-blue-700">{currentPlan.name || "Unknown"}</span>
+              {isTrial && (
+                <span className="text-xs font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                  Trial
+                </span>
+              )}
+            </h3>
+
+            {typeof daysLeft === "number" && (
+              <p className="text-sm text-slate-700 mt-1">
+                {daysLeft > 0
+                  ? `Plan expires in ${daysLeft} day${daysLeft === 1 ? "" : "s"}.`
+                  : "Plan has expired or expires today."}
+              </p>
+            )}
+
+            {currentPlan.expires_at && (
+              <p className="text-xs text-slate-500 mt-0.5">
+                Expires on:{" "}
+                <span className="font-medium">
+                  {new Date(currentPlan.expires_at).toLocaleDateString()}
+                </span>
+              </p>
+            )}
+
+            {isTrial && (
+              <p className="text-xs text-amber-700 mt-2">
+                You are on a trial. Consider upgrading before it ends.
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="mb-6 rounded-xl border px-5 py-4 bg-white">
+            <p className="text-sm text-slate-600">No active plan found for this tenant.</p>
+          </div>
+        )}
+
+        {/* IF TRIAL → SHOW ALL PLANS AT TOP */}
+        {isTrial && plans.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold text-slate-800 mb-3">Available Plans</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {plans.map((plan) => (
+                <div
+                  key={plan.id}
+                  className="bg-white rounded-xl shadow p-4 border border-slate-100"
+                >
+                  <h4 className="font-semibold text-slate-800">
+                    {plan.plan_name.toUpperCase()}
+                  </h4>
+                  <p className="text-xs text-slate-500 mt-1">{plan.description}</p>
+                  <p className="text-sm text-slate-700 mt-2">
+                    Duration: <span className="font-medium">{plan.duration_days} days</span>
+                  </p>
+                  <p className="text-sm text-slate-700">
+                    Price: <span className="font-semibold">₹{plan.price}</span>
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Features: {Array.isArray(plan.features) ? plan.features.join(", ") : String(plan.features ?? "")}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* FALLBACK: show plans always if tenant is trial or if user wants to browse */}
+        {!isTrial && plans.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold text-slate-800 mb-3">All Plans</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {plans.map((plan) => (
+                <div key={plan.id} className="bg-white rounded-xl shadow p-4 border border-slate-100">
+                  <h4 className="font-semibold text-slate-800">{plan.plan_name}</h4>
+                  <p className="text-xs text-slate-500 mt-1">{plan.description}</p>
+                  <p className="text-sm text-slate-700 mt-2">Price: <span className="font-semibold">₹{plan.price}</span></p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* STAT CARDS – USING REAL COUNTS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <div className="bg-white p-5 rounded-xl shadow hover:shadow-lg transition">
             <h3 className="text-slate-600">Total Students</h3>
-            <p className="text-3xl font-bold mt-2">412</p>
+            <p className="text-3xl font-bold mt-2">{counts.students ?? 0}</p>
+          </div>
+
+          <div className="bg-white p-5 rounded-xl shadow hover:shadow-lg transition">
+            <h3 className="text-slate-600">Total Teachers</h3>
+            <p className="text-3xl font-bold mt-2">{counts.teachers ?? 0}</p>
           </div>
 
           <div className="bg-white p-5 rounded-xl shadow hover:shadow-lg transition">
             <h3 className="text-slate-600">Total Staff</h3>
-            <p className="text-3xl font-bold mt-2">34</p>
-          </div>
-
-          <div className="bg-white p-5 rounded-xl shadow hover:shadow-lg transition">
-            <h3 className="text-slate-600">Active Parents</h3>
-            <p className="text-3xl font-bold mt-2">295</p>
+            <p className="text-3xl font-bold mt-2">{counts.staff ?? 0}</p>
           </div>
         </div>
 
@@ -109,16 +278,12 @@ export default function AdminDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-6">
           <div className="bg-white p-5 rounded-xl shadow">
             <h3 className="text-lg font-semibold text-slate-700">Recent Admissions</h3>
-            <div className="h-40 flex items-center justify-center text-slate-500">
-              (Chart Placeholder)
-            </div>
+            <div className="h-40 flex items-center justify-center text-slate-500 text-sm">(Chart Placeholder)</div>
           </div>
 
           <div className="bg-white p-5 rounded-xl shadow">
             <h3 className="text-lg font-semibold text-slate-700">Latest Staff Added</h3>
-            <div className="h-40 flex items-center justify-center text-slate-500">
-              (Table Placeholder)
-            </div>
+            <div className="h-40 flex items-center justify-center text-slate-500 text-sm">(Table Placeholder)</div>
           </div>
         </div>
       </div>

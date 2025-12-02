@@ -110,6 +110,7 @@ function AdminSignupEmailStep() {
       });
 
       const { signup_token } = res.data;
+      console.log(signup_token)
 
       setSuccessMsg("OTP verified successfully.");
 

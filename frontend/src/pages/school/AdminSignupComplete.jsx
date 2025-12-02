@@ -1,20 +1,60 @@
 // frontend/src/pages/school/AdminSignupComplete.jsx
 import { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, Link } from "react-router-dom";
 import api from "../../api/axios";
 
 function AdminSignupComplete() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // Incoming state
   const verifiedEmail = location.state?.email || "";
   const signupToken = location.state?.signupToken || null;
-  const fromGoogle = location.state?.fromGoogle || false;
+  const fromGoogle = !!location.state?.fromGoogle;
+  const fromLogin = !!location.state?.fromLogin;
+  console.log(fromLogin)
 
+  // Passwords might have been collected on the previous page (optional)
   const initialPassword = location.state?.password || "";
   const initialConfirmPassword = location.state?.confirmPassword || "";
   const initialFullname = location.state?.fullname || "";
 
+  // allow OTP, Google or Login flows
+  const hasValidEntry =
+    Boolean(verifiedEmail) && (Boolean(signupToken) || fromGoogle || fromLogin);
+
+  // If flow is invalid show friendly message
+  if (!hasValidEntry) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-100">
+        <div className="w-full max-w-md bg-white shadow-md rounded-xl p-6">
+          <h2 className="text-xl font-semibold text-slate-800 mb-2">
+            Invalid signup flow
+          </h2>
+          <p className="text-sm text-slate-600 mb-4">
+            You reached this page without a valid signup session. Please start
+            again.
+          </p>
+          <div className="flex gap-2">
+            <Link
+              to="/"
+              className="flex-1 inline-flex items-center justify-center rounded-lg bg-blue-600 text-white text-sm font-medium py-2.5 hover:bg-blue-700 transition"
+            >
+              Go to Signup
+            </Link>
+            <Link
+              to="/login"
+              className="flex-1 inline-flex items-center justify-center rounded-lg bg-slate-200 text-slate-800 text-sm font-medium py-2.5 hover:bg-slate-300 transition"
+            >
+              Go to Login
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Form data (we keep password in form too so user can set/change if needed)
   const [formData, setFormData] = useState({
     email: verifiedEmail,
     fullname: initialFullname,
@@ -23,34 +63,16 @@ function AdminSignupComplete() {
     tenant_email: "",
     tenant_phone: "",
     tenant_address: "",
+    password: initialPassword,
+    confirm_password: initialConfirmPassword,
   });
 
   const [loading, setLoading] = useState(false);
+  const [skipLoading, setSkipLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
-  // If neither OTP context nor Google context exists → invalid flow
-  if (!fromGoogle && !signupToken) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-100">
-        <div className="w-full max-w-md bg-white shadow-md rounded-xl p-6">
-          <h2 className="text-xl font-semibold text-slate-800 mb-2">
-            Invalid signup flow
-          </h2>
-          <p className="text-sm text-slate-600 mb-4">
-            You reached this page without a valid signup session.  
-            Please start again.
-          </p>
-          <button
-            onClick={() => navigate("/signup")}
-            className="w-full inline-flex items-center justify-center rounded-lg bg-blue-600 text-white text-sm font-medium py-2.5 hover:bg-blue-700 transition"
-          >
-            Go to Signup
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const showPasswordInputs = Boolean(signupToken) && !initialPassword;
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -62,86 +84,68 @@ function AdminSignupComplete() {
     setErrorMsg("");
     setSuccessMsg("");
 
-    const trimmedEmail = formData.email.trim();
     const trimmedInstance = formData.instance_name.trim();
-
-    if (!trimmedEmail) {
-      setErrorMsg("Email is required.");
-      return;
-    }
-
     if (!trimmedInstance) {
       setErrorMsg("School / Institute name is required.");
       return;
     }
 
-    // OTP MODE: ensure we still have a valid password in state
-    if (!fromGoogle) {
-      if (!signupToken) {
-        setErrorMsg("OTP not verified. Please go back and verify your email.");
-        return;
-      }
-
-      if (!initialPassword || initialPassword.length < 6) {
-        setErrorMsg("Password is missing or invalid. Please restart signup.");
-        return;
-      }
-
-      if (initialPassword !== initialConfirmPassword) {
-        setErrorMsg("Passwords do not match. Please restart signup.");
-        return;
-      }
-    }
+   
 
     try {
       setLoading(true);
 
       let res;
-
-      if (fromGoogle) {
-        // GOOGLE MODE: tenant + profile setup only
-        res = await api.post("/auth/google-initial-setup/", {
-          fullname: formData.fullname.trim(),
-          phone: formData.phone.trim(),
-          instance_name: formData.instance_name.trim(),
-          tenant_email: formData.tenant_email.trim(),
-          tenant_phone: formData.tenant_phone.trim(),
-          tenant_address: formData.tenant_address.trim(),
-        });
-        // tokens are already stored at Google login step
-      } else {
-        // OTP MODE: full signup + password + tenant
+      if (signupToken) {
+        // OTP SIGNUP: complete signup using signup_token (backend already expects this)
         res = await api.post("/signup/", {
-          email: trimmedEmail,
+          email: formData.email.trim(),
           signup_token: signupToken,
           fullname: formData.fullname.trim(),
-          password: initialPassword,
-          confirm_password: initialConfirmPassword,
           phone: formData.phone.trim(),
           instance_name: formData.instance_name.trim(),
-          tenant_email: formData.tenant_email.trim(),
+          tenant_email: formData.tenant_email.trim() || formData.email.trim(),
           tenant_phone: formData.tenant_phone.trim(),
           tenant_address: formData.tenant_address.trim(),
         });
 
-        // store tokens for OTP signup flow
-        localStorage.setItem("access", res.data.access);
-        localStorage.setItem("refresh", res.data.refresh);
+        // store tokens returned by full signup
+        if (res?.data?.access) localStorage.setItem("access", res.data.access);
+        if (res?.data?.refresh)
+          localStorage.setItem("refresh", res.data.refresh);
+      } else {
+        // Existing user (Google or Login) -> only setup tenant & profile
+        // Backend must accept this route and attach tenant to current user (authenticated)
+        // For Google, tokens should already be set at Google login step.
+        // For Login flow, tokens are set in login response.
+        res = await api.post("/signup/", {
+          fullname: formData.fullname.trim(),
+          email:formData.email.trim(),
+          phone: formData.phone.trim(),
+          instance_name: formData.instance_name.trim(),
+          tenant_email: formData.tenant_email.trim() || formData.email.trim(),
+          tenant_phone: formData.tenant_phone.trim(),
+          tenant_address: formData.tenant_address.trim(),
+        });
+
+        // backend should mark user.is_setup_complete true and return success
       }
 
-      console.log("Signup / setup success:", res.data);
       setSuccessMsg("Registration completed successfully.");
+      // small delay if you want user to read message; otherwise direct redirect
       navigate("/dashboard");
     } catch (err) {
-      console.error(err);
+      console.error("SIGNUP COMPLETE ERROR:", err.response?.data || err.message);
+      console.log(err)
       const data = err.response?.data;
-      console.log("SIGNUP COMPLETE ERROR:", data);
-
       if (data?.non_field_errors) {
         setErrorMsg(data.non_field_errors[0]);
+      } else if (data?.detail) {
+        setErrorMsg(data.detail);
       } else if (typeof data === "string") {
         setErrorMsg(data);
-      } else if (data) {
+      } else if (data && typeof data === "object") {
+        // prefer the first array message
         const firstKey = Object.keys(data)[0];
         if (firstKey && Array.isArray(data[firstKey])) {
           setErrorMsg(data[firstKey][0]);
@@ -156,6 +160,8 @@ function AdminSignupComplete() {
     }
   };
 
+    
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100">
       <div className="w-full max-w-2xl bg-white shadow-md rounded-xl p-6 sm:p-8">
@@ -166,17 +172,12 @@ function AdminSignupComplete() {
           Enter your personal and school details to complete registration.
         </p>
 
-        <form
-          onSubmit={handleSubmit}
-          className="grid grid-cols-1 md:grid-cols-2 gap-4"
-        >
+        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* LEFT COLUMN */}
           <div className="space-y-3">
             {/* Email (read-only) */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Email
-              </label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
               <input
                 type="email"
                 name="email"
@@ -188,9 +189,7 @@ function AdminSignupComplete() {
 
             {/* Full Name */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Full Name
-              </label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
               <input
                 type="text"
                 name="fullname"
@@ -203,9 +202,7 @@ function AdminSignupComplete() {
 
             {/* Phone */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                Phone
-              </label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Phone</label>
               <input
                 type="text"
                 name="phone"
@@ -215,15 +212,15 @@ function AdminSignupComplete() {
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
+
+           
           </div>
 
           {/* RIGHT COLUMN */}
           <div className="space-y-3">
             {/* School / Institute Name */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                School / Institute Name
-              </label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">School / Institute Name</label>
               <input
                 type="text"
                 name="instance_name"
@@ -236,9 +233,7 @@ function AdminSignupComplete() {
 
             {/* School Email */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                School Email
-              </label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">School Email</label>
               <input
                 type="email"
                 name="tenant_email"
@@ -251,9 +246,7 @@ function AdminSignupComplete() {
 
             {/* School Phone */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                School Phone
-              </label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">School Phone</label>
               <input
                 type="text"
                 name="tenant_phone"
@@ -266,9 +259,7 @@ function AdminSignupComplete() {
 
             {/* School Address */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
-                School Address
-              </label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">School Address</label>
               <textarea
                 name="tenant_address"
                 placeholder="Address (optional)"
@@ -293,22 +284,28 @@ function AdminSignupComplete() {
               </p>
             )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full mt-2 inline-flex items-center justify-center rounded-lg bg-blue-600 text-white text-sm font-medium py-2.5 disabled:opacity-70 disabled:cursor-not-allowed hover:bg-blue-700 transition"
-            >
-              {loading ? "Completing registration..." : "Complete Registration"}
-            </button>
+            <div className="flex gap-3">
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex-1 inline-flex items-center justify-center rounded-lg bg-blue-600 text-white text-sm font-medium py-2.5 disabled:opacity-70 disabled:cursor-not-allowed hover:bg-blue-700 transition"
+              >
+                {loading ? "Completing registration..." : "Complete Registration"}
+              </button>
+
+              {/* Show skip only for existing accounts (fromGoogle or fromLogin) */}
+              {(fromGoogle || fromLogin || signupToken)  && (
+                <button
+                  type="button"
+                  onClick={()=>navigate('/dashboard')}
+                  className="inline-flex items-center justify-center rounded-lg bg-slate-200 text-slate-800 text-sm font-medium px-4 py-2.5 hover:bg-slate-300 transition"
+                >
+                  {skipLoading ? "Skipping..." : "Skip for now"}
+                </button>
+              )}
+            </div>
           </div>
         </form>
-         <button
-      type="button"
-      onClick={() => navigate("/dashboard")}
-      className="w-full mt-3 inline-flex items-center justify-center rounded-lg bg-slate-200 text-slate-800 text-sm font-medium py-2.5 hover:bg-slate-300 transition"
-    >
-      Skip for now
-    </button>
       </div>
     </div>
   );

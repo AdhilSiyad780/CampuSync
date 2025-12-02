@@ -93,10 +93,140 @@ class AdminSignupSendOTPSerializer(serializers.Serializer):
         send_mail(subject, message, from_email, [email], fail_silently=False)
 
         return otp_obj
-class AdminSignupSerializer(serializers.Serializer):
+    
+class AdminSignupComlpeteSignupflow(serializers.Serializer):
+    # Basic profile / tenant fields
     email = serializers.EmailField()
-    signup_token = serializers.CharField(max_length=64)
+    fullname = serializers.CharField(max_length=255)
+    phone = serializers.CharField(max_length=50, required=False, allow_blank=True)
 
+    instance_name = serializers.CharField(max_length=255)
+    tenant_email = serializers.EmailField()
+    tenant_phone = serializers.CharField(max_length=50)
+    tenant_address = serializers.CharField(required=False, allow_blank=True)
+
+    signup_token = serializers.CharField()
+
+    def validate(self, attrs):
+        """
+        Basic validation:
+        - If signup_token provided, ensure it exists and hasn't expired (server-side logic depends on OTP model).
+        - If signup_token not provided, ensure request.user is authenticated (login/google flow).
+        - Ensure tenant_email same-domain guard etc. can be added here if needed.
+        """
+        request = self.context.get("request")
+        signup_token = attrs.get("signup_token", "").strip()
+
+        # OTP flow: validate token exists
+        if signup_token:
+            otp_obj = OTPVerification.objects.filter(signup_token=signup_token).first()
+            if not otp_obj:
+                raise serializers.ValidationError({"signup_token": "Invalid or expired signup token."})
+            # optional: ensure purpose matches
+            if otp_obj.purpose != OTPVerification.Purpose.ADMIN_SIGNUP:
+                raise serializers.ValidationError({"signup_token": "Invalid signup token purpose."})
+            # optional: check expiry if your OTP model tracks expires_at
+            if getattr(otp_obj, "expires_at", None) and otp_obj.expires_at < timezone.now():
+                raise serializers.ValidationError({"signup_token": "Signup token has expired."})
+
+            attrs["_otp_obj"] = otp_obj  # stash for create()
+            # ensure email consistency (frontend should send same email)
+            if otp_obj.email.lower() != attrs.get("email", "").lower():
+                raise serializers.ValidationError({"email": "Email does not match signup session."})
+            return attrs
+
+        # Non-OTP flow: require authenticated request.user
+        if not request or not getattr(request, "user", None) or not request.user.is_authenticated:
+            raise serializers.ValidationError("Authentication required to complete signup (or provide a signup_token).")
+
+        # Ensure email (if provided) matches authenticated user's email (optional but safer)
+        if attrs.get("email", "").lower() != request.user.email.lower():
+            raise serializers.ValidationError({"email": "Email must match the authenticated user."})
+
+        return attrs
+
+    def create(self, validated_data):
+        """
+        Create tenant and attach to the resolved user.
+        Resolution priority:
+          1) If _otp_obj present -> resolve user by email saved in otp_obj (user should already exist).
+          2) Else -> use request.user (authenticated flow).
+        Make tenant creation idempotent: if user already has a tenant, return that user after updating profile.
+        """
+        request = self.context.get("request")
+        otp_obj = validated_data.pop("_otp_obj", None)
+        signup_token = validated_data.pop("signup_token", None)  # not needed after resolution
+
+        # Resolve user
+        user = None
+        if otp_obj:
+            # OTP verify step earlier created the user with the OTP email — find user by email.
+            user = User.objects.filter(email__iexact=otp_obj.email).first()
+            if not user:
+                raise serializers.ValidationError("User associated with signup token not found. Contact support.")
+        else:
+            user = request.user
+            if not user or not user.is_authenticated:
+                raise serializers.ValidationError("Authentication required to complete signup.")
+
+        # Extract tenant/profile fields
+        instance_name = validated_data["instance_name"].strip()
+        tenant_email = validated_data["tenant_email"].strip()
+        tenant_phone = validated_data["tenant_phone"].strip()
+        tenant_address = validated_data.get("tenant_address", "").strip()
+        fullname = validated_data["fullname"].strip()
+        phone = validated_data.get("phone", "").strip()
+        email = validated_data["email"].strip()
+
+        # If user already has a tenant -> treat as idempotent update (avoid creating duplicates)
+        if getattr(user, "tenant", None):
+            tenant = user.tenant
+            # Update tenant fields if different (optional)
+            changed = False
+            if tenant.instance_name != instance_name:
+                tenant.instance_name = instance_name
+                changed = True
+            if tenant.email != tenant_email:
+                tenant.email = tenant_email
+                changed = True
+            if tenant.phone != tenant_phone:
+                tenant.phone = tenant_phone
+                changed = True
+            if tenant.address != tenant_address:
+                tenant.address = tenant_address
+                changed = True
+            if changed:
+                tenant.save(update_fields=["instance_name", "email", "phone", "address"])
+        else:
+            # Create a new tenant
+            tenant = Tenant.objects.create(
+                tenant_id=str(uuid.uuid4()),
+                instance_name=instance_name,
+                email=tenant_email,
+                phone=tenant_phone,
+                address=tenant_address,
+                status="trial",
+            )
+
+        # Update user profile and attach tenant
+        user.fullname = fullname
+        user.phone = phone
+        user.tenant = tenant
+        user.is_setup_complete = True
+        user.save(update_fields=["fullname", "phone", "tenant", "is_setup_complete"])
+
+        # Optionally: mark signup_token or otp_obj as consumed/cleared here
+        if otp_obj:
+            # Keep existing behavior consistent: mark signup token as consumed (if you want)
+            # (Do NOT delete audit trail unless intended)
+            otp_obj.signup_token = None
+            otp_obj.save(update_fields=["signup_token"])
+
+        return user
+    
+class AdminSignupCompleteLoginflow(serializers.Serializer):
+    # No signup_token here — this serializer expects an authenticated request.user
+    email = serializers.EmailField()
     fullname = serializers.CharField(max_length=255)
     phone = serializers.CharField(max_length=50, required=False, allow_blank=True)
 
@@ -106,71 +236,62 @@ class AdminSignupSerializer(serializers.Serializer):
     tenant_address = serializers.CharField(required=False, allow_blank=True)
 
     def validate(self, attrs):
-        email = attrs.get("email")
-        signup_token = attrs.get("signup_token")
+        request = self.context.get("request")
+        if not request or not getattr(request, "user", None) or not request.user.is_authenticated:
+            raise serializers.ValidationError("Authentication required to complete signup.")
 
-        # OTP object that carries the signup_token
-        otp_obj = (
-            OTPVerification.objects.filter(
-                email=email,
-                purpose=OTPVerification.Purpose.ADMIN_SIGNUP,
-                signup_token=signup_token,
-            )
-            .order_by("-created_at")
-            .first()
-        )
+        # Ensure the provided email matches authenticated user's email (recommended)
+        if attrs.get("email", "").lower() != request.user.email.lower():
+            raise serializers.ValidationError({"email": "Email must match the authenticated user."})
 
-        if not otp_obj:
-            raise serializers.ValidationError("Signup token is invalid or expired.")
-
-        from datetime import timedelta
-        if otp_obj.created_at < timezone.now() - timedelta(minutes=30):
-            raise serializers.ValidationError("Signup session expired. Please verify OTP again.")
-
-        # User MUST already exist (created at verify-otp step)
-        try:
-            user = User.objects.get(email__iexact=email, user_type="admin")
-        except User.DoesNotExist:
-            raise serializers.ValidationError("Admin user not found. Please verify OTP again.")
-
-        if getattr(user, "is_setup_complete", False):
-            raise serializers.ValidationError("Setup already completed for this account.")
-
-        attrs["otp_obj"] = otp_obj
-        attrs["user"] = user
         return attrs
 
     def create(self, validated_data):
-        otp_obj = validated_data["otp_obj"]
-        user = validated_data["user"]
+        request = self.context.get("request")
+        user = request.user
 
-        instance_name = validated_data["instance_name"]
-        tenant_email = validated_data["tenant_email"]
-        tenant_phone = validated_data["tenant_phone"]
-        tenant_address = validated_data.get("tenant_address", "")
-        fullname = validated_data["fullname"]
-        phone = validated_data.get("phone", "")
+        # tenant/profile fields
+        instance_name = validated_data["instance_name"].strip()
+        tenant_email = validated_data["tenant_email"].strip()
+        tenant_phone = validated_data["tenant_phone"].strip()
+        tenant_address = validated_data.get("tenant_address", "").strip()
+        fullname = validated_data["fullname"].strip()
+        phone = validated_data.get("phone", "").strip()
 
-        # 1) Create Tenant
-        tenant = Tenant.objects.create(
-            tenant_id=str(uuid.uuid4()),
-            instance_name=instance_name,
-            email=tenant_email,
-            phone=tenant_phone,
-            address=tenant_address,
-            status="trial",
-        )
+        # idempotent tenant creation
+        if getattr(user, "tenant", None):
+            tenant = user.tenant
+            changed = False
+            if tenant.instance_name != instance_name:
+                tenant.instance_name = instance_name
+                changed = True
+            if tenant.email != tenant_email:
+                tenant.email = tenant_email
+                changed = True
+            if tenant.phone != tenant_phone:
+                tenant.phone = tenant_phone
+                changed = True
+            if tenant.address != tenant_address:
+                tenant.address = tenant_address
+                changed = True
+            if changed:
+                tenant.save(update_fields=["instance_name", "email", "phone", "address"])
+        else:
+            tenant = Tenant.objects.create(
+                tenant_id=str(uuid.uuid4()),
+                instance_name=instance_name,
+                email=tenant_email,
+                phone=tenant_phone,
+                address=tenant_address,
+                status="trial",
+            )
 
-        # 2) Update existing user with tenant + profile
+        # update user
         user.fullname = fullname
         user.phone = phone
         user.tenant = tenant
         user.is_setup_complete = True
         user.save(update_fields=["fullname", "phone", "tenant", "is_setup_complete"])
-
-        # 3) Clear signup_token
-        otp_obj.signup_token = None
-        otp_obj.save(update_fields=["signup_token"])
 
         return user
 

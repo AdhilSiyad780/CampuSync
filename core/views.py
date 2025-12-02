@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .serializer import SuperAdminLoginSerializer,AdminVerifyOTPSerializer,SuperAdminProfileSerializer,SuperAdminProfileUpdateSerializer,AdminSignupSendOTPSerializer,AdminSignupSerializer,AdminLoginSerializer
+from .serializer import SuperAdminLoginSerializer,AdminVerifyOTPSerializer,AdminSignupCompleteLoginflow,SuperAdminProfileSerializer,SuperAdminProfileUpdateSerializer,AdminSignupSendOTPSerializer,AdminSignupComlpeteSignupflow,AdminLoginSerializer
 
 from rest_framework.permissions import AllowAny
 from rest_framework.permissions import IsAuthenticated
@@ -58,19 +58,52 @@ class AdminSignupSendOTPView(APIView):
             {"detail": "OTP sent to email if it is valid."},
             status=status.HTTP_200_OK,
         )
-    
+  
 class AdminSignupView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [AllowAny]  # keep AllowAny to support OTP path
 
     def post(self, request):
-        serializer = AdminSignupSerializer(data=request.data)
+        # OTP-driven path (frontend sends signup_token)
+        if request.data.get("signup_token"):
+            serializer = AdminSignupComlpeteSignupflow(data=request.data, context={"request": request})
+            serializer.is_valid(raise_exception=True)
+            user = serializer.save()
+            refresh = RefreshToken.for_user(user)
+            access = refresh.access_token
+            tenant = user.tenant
+            data = {
+                "refresh": str(refresh),
+                "access": str(access),
+                "user": {
+                    "id": user.id,
+                    "email": user.email,
+                    "fullname": user.fullname,
+                    "user_type": user.user_type,
+                    "is_setup_complete": user.is_setup_complete,
+                },
+                "tenant": {
+                    "id": tenant.id,
+                    "tenant_id": tenant.tenant_id,
+                    "instance_name": tenant.instance_name,
+                    "email": tenant.email,
+                    "phone": tenant.phone,
+                    "address": tenant.address,
+                    "status": tenant.status,
+                } if tenant else None,
+            }
+            return Response(data, status=status.HTTP_200_OK)
+
+        # Authenticated path (login/google -> complete)
+        # This path MUST be authenticated; reject anonymous requests explicitly
+        if not request.user or not getattr(request.user, "is_authenticated", False):
+            return Response({"detail": "Authentication required to complete signup."}, status=status.HTTP_401_UNAUTHORIZED)
+
+        serializer = AdminSignupCompleteLoginflow(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-
         refresh = RefreshToken.for_user(user)
         access = refresh.access_token
         tenant = user.tenant
-
         data = {
             "refresh": str(refresh),
             "access": str(access),
@@ -91,9 +124,7 @@ class AdminSignupView(APIView):
                 "status": tenant.status,
             } if tenant else None,
         }
-
         return Response(data, status=status.HTTP_200_OK)
-
 
 class AdminVerifyOTPView(APIView):
     permission_classes = [AllowAny]

@@ -86,6 +86,7 @@ function AdminLoginPage() {
       // store tokens + basic user state
       localStorage.setItem("access", res.data.access);
       localStorage.setItem("refresh", res.data.refresh);
+      console.log(res.data.access,'==========================================')
       localStorage.setItem(
         "is_setup_complete",
         String(res.data.user.is_setup_complete)
