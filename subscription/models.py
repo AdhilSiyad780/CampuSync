@@ -35,9 +35,12 @@ class Subscription(models.Model):
     expiry_date = models.DateTimeField()
     next_billing_date = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    is_active = models.BooleanField(default=True)
+    
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
 
     def __str__(self):
         return f"{self.tenant} - {self.plan.plan_name}"

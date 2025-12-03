@@ -8,6 +8,8 @@ from django.utils import timezone
 from rest_framework import serializers
 from .models import User, OTPVerification, Tenant
 import uuid
+from subscription.models import SubscriptionPlan,Subscription
+from datetime import timedelta
 
 class SuperAdminLoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -207,7 +209,35 @@ class AdminSignupComlpeteSignupflow(serializers.Serializer):
                 address=tenant_address,
                 status="trial",
             )
+            trial_plan = SubscriptionPlan.objects.filter(
+                plan_name__iexact="Trial", is_active=True
+            ).first()
 
+            if not trial_plan:
+                trial_plan = SubscriptionPlan.objects.create(
+                    plan_name="Trial",
+                    description="Default trial plan",
+                    duration_days=7,
+                    price=0,
+                    max_students=None,
+                    max_teachers=None,
+                    max_admins=1,
+                    features=["Basic features", "Limited usage"],
+                    is_active=True,
+                )
+
+            now = timezone.now()
+            duration_days = trial_plan.duration_days or 7
+
+            Subscription.objects.create(
+                tenant=tenant,
+                plan=trial_plan,
+                start_date=now,
+                expiry_date=now + timedelta(days=duration_days),
+                next_billing_date=None,
+                status="trial",     
+                is_active=True,
+            )
         # Update user profile and attach tenant
         user.fullname = fullname
         user.phone = phone
@@ -284,6 +314,64 @@ class AdminSignupCompleteLoginflow(serializers.Serializer):
                 phone=tenant_phone,
                 address=tenant_address,
                 status="trial",
+            )
+            trial_plan = SubscriptionPlan.objects.filter(
+                plan_name__iexact="Trial", is_active=True
+            ).first()
+
+            if not trial_plan:
+                trial_plan = SubscriptionPlan.objects.create(
+                    plan_name="Trial",
+                    description="Default trial plan",
+                    duration_days=7,
+                    price=0,
+                    max_students=None,
+                    max_teachers=None,
+                    max_admins=1,
+                    features=["Basic features", "Limited usage"],
+                    is_active=True,
+                )
+
+            now = timezone.now()
+            duration_days = trial_plan.duration_days or 7
+
+            Subscription.objects.create(
+                tenant=tenant,
+                plan=trial_plan,
+                start_date=now,
+                expiry_date=now + timedelta(days=duration_days),
+                next_billing_date=None,
+                status="trial",     # matches your STATUS_CHOICES
+                is_active=True,
+            )
+            trial_plan = SubscriptionPlan.objects.filter(
+                plan_name__iexact="Trial", is_active=True
+            ).first()
+
+            if not trial_plan:
+                trial_plan = SubscriptionPlan.objects.create(
+                    plan_name="Trial",
+                    description="Default trial plan",
+                    duration_days=7,
+                    price=0,
+                    max_students=None,
+                    max_teachers=None,
+                    max_admins=1,
+                    features=["Basic features", "Limited usage"],
+                    is_active=True,
+                )
+
+            now = timezone.now()
+            duration_days = trial_plan.duration_days or 7
+
+            Subscription.objects.create(
+                tenant=tenant,
+                plan=trial_plan,
+                start_date=now,
+                expiry_date=now + timedelta(days=duration_days),
+                next_billing_date=None,
+                status="trial",     # matches your STATUS_CHOICES
+                is_active=True,
             )
 
         # update user

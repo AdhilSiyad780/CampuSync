@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "core",
     "subscription",
+    'members',
 ]
 
 MIDDLEWARE = [
