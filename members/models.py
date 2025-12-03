@@ -1,6 +1,8 @@
 # students/models.py
 from django.db import models
 from core.models import User, Tenant   # adjust import if Tenant is elsewhere
+from django.db import models
+
 
 class StudentProfile(models.Model):
     user = models.OneToOneField(
@@ -40,3 +42,23 @@ class StudentProfile(models.Model):
 
     def __str__(self):
         return f"{self.user.fullname} ({self.admission_number})"
+
+# core/models.py
+
+class TeacherProfile(models.Model):
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name="teacher_profile",
+    )
+    department_id = models.IntegerField(null=True, blank=True)
+    employee_id = models.IntegerField()
+    joining_date = models.DateTimeField()
+    qualification = models.CharField(max_length=255)
+    salary = models.IntegerField(null=True, blank=True)
+    specialization = models.CharField(max_length=255, blank=True)
+    id_proof_url = models.CharField(max_length=255)
+    years_of_experience = models.IntegerField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.user.fullname} ({self.employee_id})"

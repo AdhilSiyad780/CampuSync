@@ -96,7 +96,7 @@ class User(AbstractBaseUser,PermissionsMixin):
 
 class OTPVerification(models.Model):
     class Purpose(models.TextChoices):
-        ADMIN_SIGNUP = "ADMIN_SIGNUP", "Admin Signup"
+        ADMIN_SIGNUP = "ADMIN_SIGNUP", "Admin Signup"           
 
     email = models.EmailField()
     otp = models.CharField(max_length=6)

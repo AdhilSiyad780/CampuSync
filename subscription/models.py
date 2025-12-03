@@ -44,3 +44,4 @@ class Subscription(models.Model):
 
     def __str__(self):
         return f"{self.tenant} - {self.plan.plan_name}"
+    

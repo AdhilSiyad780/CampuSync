@@ -1,30 +1,41 @@
 // frontend/src/App.jsx
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Layout from "./componets/Layout";
-import SuperAdminProfile from "./pages/SuperAdminProfile";
-import SubscriptionPlans from "./pages/SubscriptionPlans";
-import ProtectedRoute from "./componets/ProtectedRoute";
-import LoginPage from "./pages/SuperAdminLogin";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+
+// ---------- SCHOOL / ADMIN PAGES ----------
 import AdminSignupEmailStep from "./pages/school/AdminSignupEmailStep";
 import AdminSignupComplete from "./pages/school/AdminSignupComplete";
-import AdminDashboard from "./pages/school/AdminDashboard";
 import AdminLoginPage from "./pages/school/AdminLoginPage";
+import AdminDashboard from "./pages/school/AdminDashboard";
+import StudentsPage from "./pages/school/StudentsPage"; // <-- make sure this exists
+import TeachersPage from "./pages/school/TeacherPage";
+
+// ---------- SUPERADMIN PAGES ----------
+import LoginPage from "./pages/SuperAdminLogin";
+import Layout from "./componets/Layout";
+import ProtectedRoute from "./componets/ProtectedRoute";
+import SuperAdminProfile from "./pages/SuperAdminProfile";
+import SubscriptionPlans from "./pages/SubscriptionPlans";
+ 
+
 export default function App() {
   return (
-    <BrowserRouter>
+    <Router>
       <Routes>
-        {/* PUBLIC LOGIN ROUTE */}
+        {/* ===================== PUBLIC SCHOOL / ADMIN AUTH ROUTES ===================== */}
         <Route path="/" element={<AdminSignupEmailStep />} />
-        <Route path="/signup/complete" element={<AdminSignupComplete />} />
-        <Route path="/dashboard" element={<AdminDashboard />} />
         <Route path="/login" element={<AdminLoginPage />} />
-   
+        <Route path="/signup/complete" element={<AdminSignupComplete />} />
 
+        {/* ===================== SCHOOL / ADMIN APP ROUTES ===================== */}
+        {/* (You can wrap these with an AdminProtectedRoute later if you want) */}
+        <Route path="/dashboard" element={<AdminDashboard />} />
+        <Route path="/students" element={<StudentsPage />} />
+        <Route path="/teachers"  element={<TeachersPage/>}/>
 
-
+        {/* ===================== SUPERADMIN AUTH ROUTE ===================== */}
         <Route path="/superadmin/login" element={<LoginPage />} />
 
-        {/* PROTECTED SUPERADMIN AREA */}
+        {/* ===================== PROTECTED SUPERADMIN AREA ===================== */}
         <Route
           path="/superadmin"
           element={
@@ -33,7 +44,7 @@ export default function App() {
             </ProtectedRoute>
           }
         >
-          {/* /superadmin  -> profile by default */}
+          {/* /superadmin -> profile by default */}
           <Route index element={<SuperAdminProfile />} />
 
           {/* /superadmin/profile */}
@@ -49,6 +60,6 @@ export default function App() {
           <Route path="tenants" element={<div>Tenants coming soon</div>} />
         </Route>
       </Routes>
-    </BrowserRouter>
+    </Router>
   );
 }
