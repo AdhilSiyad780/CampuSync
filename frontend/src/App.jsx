@@ -8,6 +8,7 @@ import AdminLoginPage from "./pages/school/AdminLoginPage";
 import AdminDashboard from "./pages/school/AdminDashboard";
 import StudentsPage from "./pages/school/StudentsPage"; // <-- make sure this exists
 import TeachersPage from "./pages/school/TeacherPage";
+import ParentsPage from "./pages/school/ParentPage";
 
 // ---------- SUPERADMIN PAGES ----------
 import LoginPage from "./pages/SuperAdminLogin";
@@ -31,6 +32,7 @@ export default function App() {
         <Route path="/dashboard" element={<AdminDashboard />} />
         <Route path="/students" element={<StudentsPage />} />
         <Route path="/teachers"  element={<TeachersPage/>}/>
+        <Route path="/parents"  element={<ParentsPage/>}/>
 
         {/* ===================== SUPERADMIN AUTH ROUTE ===================== */}
         <Route path="/superadmin/login" element={<LoginPage />} />

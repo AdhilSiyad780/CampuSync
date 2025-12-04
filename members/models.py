@@ -62,3 +62,47 @@ class TeacherProfile(models.Model):
 
     def __str__(self):
         return f"{self.user.fullname} ({self.employee_id})"
+
+# core/models.py
+
+class ParentProfile(models.Model):
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name="parent_profile",
+    )
+    contact_number = models.CharField(max_length=255)
+    whatsapp_number = models.CharField(max_length=255)
+    occupation = models.CharField(max_length=255, blank=True, null=True)
+
+    def __str__(self):
+        return f"Parent: {self.user.fullname} ({self.user.email})"
+
+
+class ParentStudentRelation(models.Model):
+    RELATION_CHOICES = [
+        ("mother", "Mother"),
+        ("father", "Father"),
+        ("guardian", "Guardian"),
+        ("other", "Other"),
+    ]
+
+    parent = models.ForeignKey(
+        ParentProfile,
+        on_delete=models.CASCADE,
+        related_name="relations",
+    )
+    student = models.ForeignKey(
+        StudentProfile,
+        on_delete=models.CASCADE,
+        related_name="parent_relations",
+    )
+    relation_type = models.CharField(max_length=20, choices=RELATION_CHOICES)
+    is_primary = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("parent", "student")  # a parent–student pair should not repeat
+
+    def __str__(self):
+        return f"{self.parent.user.fullname} -> {self.student.user.fullname} ({self.relation_type})"

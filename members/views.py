@@ -70,3 +70,46 @@ class TeacherRetrieveUpdateView(generics.RetrieveUpdateAPIView):
         ctx = super().get_serializer_context()
         ctx["request"] = self.request
         return ctx
+    
+# core/views.py
+from rest_framework import generics
+from rest_framework.permissions import IsAuthenticated
+from .models import ParentProfile
+from .serializers import ParentSerializer  # adjust import
+
+class ParentListCreateView(generics.ListCreateAPIView):
+    serializer_class = ParentSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        tenant = getattr(user, "tenant", None)
+        if not tenant:
+            return ParentProfile.objects.none()
+        return ParentProfile.objects.filter(user__tenant=tenant).prefetch_related(
+            "relations__student__user"
+        )
+
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx["request"] = self.request
+        return ctx
+
+
+class ParentRetrieveUpdateView(generics.RetrieveUpdateAPIView):
+    serializer_class = ParentSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        tenant = getattr(user, "tenant", None)
+        if not tenant:
+            return ParentProfile.objects.none()
+        return ParentProfile.objects.filter(user__tenant=tenant).prefetch_related(
+            "relations__student__user"
+        )
+
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        ctx["request"] = self.request
+        return ctx

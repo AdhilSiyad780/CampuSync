@@ -108,7 +108,8 @@ export default function AdminDashboard() {
   const menuItems = [
     { name: "Dashboard", icon: <BookOpen size={18} />, path: "/dashboard" },
     { name: "Students", icon: <Users size={18} />, path: "/students" },
-    { name: "Teachers", icon: <UserCog size={18} />, path: "/teachers" }, // future
+    { name: "Teachers", icon: <UserCog size={18} />, path: "/teachers" },
+    { name: "Parents", icon: <UserCog size={18} />, path: "/parents" },
     { name: "School Details", icon: <School size={18} />, path: "/school" }, // future
   ];
 

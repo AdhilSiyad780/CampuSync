@@ -191,3 +191,159 @@ class TeacherSerializer(serializers.ModelSerializer):
         instance.save()
 
         return instance
+
+
+
+# core/serializer.py  (or a dedicated parents_serializers.py)
+from rest_framework import serializers
+from .models import User, ParentProfile, ParentStudentRelation, StudentProfile
+from django.db import transaction
+
+class ParentStudentRelationSerializer(serializers.ModelSerializer):
+    # Read-only student details for list / view
+    student_id = serializers.IntegerField(source="student.id")
+    student_name = serializers.CharField(source="student.user.fullname", read_only=True)
+    class_id = serializers.IntegerField(source="student.class_id", read_only=True)
+    section = serializers.CharField(source="student.section", read_only=True)
+    admission_number = serializers.CharField(source="student.admission_number", read_only=True)
+
+    class Meta:
+        model = ParentStudentRelation
+        fields = [
+            "id",
+            "student_id",
+            "student_name",
+            "class_id",
+            "section",
+            "admission_number",
+            "relation_type",
+            "is_primary",
+        ]
+        extra_kwargs = {
+            "student_name": {"read_only": True},
+            "class_id": {"read_only": True},
+            "section": {"read_only": True},
+            "admission_number": {"read_only": True},
+        }
+
+class ParentSerializer(serializers.ModelSerializer):
+    # user fields
+    fullname = serializers.CharField(source="user.fullname")
+    email = serializers.EmailField(source="user.email")
+    phone = serializers.CharField(
+        source="user.phone", allow_blank=True, allow_null=True, required=False
+    )
+
+    # profile fields
+    contact_number = serializers.CharField()
+    whatsapp_number = serializers.CharField()
+    occupation = serializers.CharField(allow_blank=True, allow_null=True, required=False)
+
+    # nested relations
+    relations = ParentStudentRelationSerializer(many=True, required=False)
+
+    class Meta:
+        model = ParentProfile
+        fields = [
+            "id",
+            "fullname",
+            "email",
+            "phone",
+            "contact_number",
+            "whatsapp_number",
+            "occupation",
+            "relations",
+        ]
+
+    def validate(self, attrs):
+        # simple sanity checks
+        user_data = attrs.get("user", {})
+        email = user_data.get("email")
+        if not email:
+            raise serializers.ValidationError({"email": "Email is required."})
+        return attrs
+
+    @transaction.atomic
+    def create(self, validated_data):
+        request = self.context.get("request")
+        if not request or not request.user.is_authenticated:
+            raise serializers.ValidationError("Authentication required.")
+
+        tenant = getattr(request.user, "tenant", None)
+        if not tenant:
+            raise serializers.ValidationError("Tenant not found for this admin.")
+
+        user_data = validated_data.pop("user")
+        relations_data = validated_data.pop("relations", [])
+
+        email = user_data["email"]
+        if User.objects.filter(email__iexact=email).exists():
+            raise serializers.ValidationError({"email": "A user with this email already exists."})
+
+        # Create user
+        user = User(
+            email=email,
+            fullname=user_data.get("fullname", ""),
+            phone=user_data.get("phone", ""),
+            user_type="parent",
+            status="active",
+            tenant=tenant,
+        )
+        user.set_unusable_password()
+        user.save()
+
+        # Parent profile
+        parent = ParentProfile.objects.create(user=user, **validated_data)
+
+        # Relations
+        self._sync_relations(parent, relations_data)
+
+        return parent
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        user_data = validated_data.pop("user", {})
+        relations_data = validated_data.pop("relations", None)  # can be omitted
+
+        # update user
+        user = instance.user
+        for attr, value in user_data.items():
+            setattr(user, attr, value)
+        user.save()
+
+        # update profile
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        # if relations were provided, replace existing with new set
+        if relations_data is not None:
+            self._sync_relations(instance, relations_data)
+
+        return instance
+
+    def _sync_relations(self, parent, relations_data):
+        """
+        Replace all existing relations for this parent with the provided list.
+        relations_data => [{ "student": { "id": X }, "relation_type": "...", "is_primary": true }, ...]
+        but because we used ParentStudentRelationSerializer with source="student.id",
+        the parsed form will be something like { "student": {"id": ...}, "relation_type": ..., ... }
+        So we’ll map manually.
+        """
+        ParentStudentRelation.objects.filter(parent=parent).delete()
+
+        for rel in relations_data:
+            student_id = rel.get("student", {}).get("id") or rel.get("student_id")
+            if not student_id:
+                continue
+            try:
+                student = StudentProfile.objects.get(id=student_id, user__tenant=parent.user.tenant)
+            except StudentProfile.DoesNotExist:
+                raise serializers.ValidationError({"relations": f"Student with id {student_id} not found for this tenant."})
+
+            ParentStudentRelation.objects.create(
+                parent=parent,
+                student=student,
+                relation_type=rel.get("relation_type", "other"),
+                is_primary=bool(rel.get("is_primary", False)),
+            )
