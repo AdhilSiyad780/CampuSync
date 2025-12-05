@@ -1,4 +1,3 @@
-// frontend/src/pages/school/AdminDashboard.jsx
 import { useEffect, useState } from "react";
 import { Menu, X, Users, School, UserCog, BookOpen, Info } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -11,13 +10,14 @@ export default function AdminDashboard() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [showPlanDetails, setShowPlanDetails] = useState(false);
+  const [paymentLoading, setPaymentLoading] = useState(false);
 
   const navigate = useNavigate();
 
+  // ---------- INIT LOAD ----------
   useEffect(() => {
     const init = async () => {
       try {
-        // load both plans and tenant summary in parallel
         await Promise.all([loadPlans(), loadTenantSummary()]);
       } finally {
         setLoading(false);
@@ -27,6 +27,7 @@ export default function AdminDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ---------- LOAD PLANS ----------
   const loadPlans = async () => {
     try {
       const res = await api.get("subscriptions/plans/");
@@ -47,6 +48,7 @@ export default function AdminDashboard() {
     }
   };
 
+  // ---------- LOAD TENANT SUMMARY ----------
   const loadTenantSummary = async () => {
     try {
       const res = await api.get("subscriptions/tenant-summary/");
@@ -70,7 +72,96 @@ export default function AdminDashboard() {
     }
   };
 
-  // derived values
+  // ---------- RAZORPAY: BUY / UPGRADE PLAN ----------
+  const handleBuyPlan = async (plan) => {
+    setError("");
+    setPaymentLoading(true);
+
+    // safety: Razorpay script check
+    if (!window.Razorpay) {
+      alert("Payment system not loaded. Refresh the page and try again.");
+      setPaymentLoading(false);
+      return;
+    }
+
+    try {
+      // 1) Create order in backend
+      const res = await api.post("subscriptions/create-order/", {
+        plan_id: plan.id,
+      });
+
+      const {
+        order_id,
+        amount,
+        currency,
+        razorpay_key_id,
+      } = res.data;
+
+      // 2) Configure Razorpay checkout
+      const options = {
+        key: razorpay_key_id,
+        amount: amount,
+        currency: currency,
+        name: "Campusync",
+        description: `Subscription - ${plan.plan_name}`,
+        order_id: order_id,
+        prefill: {
+          name: localStorage.getItem("admin_fullname") || "",
+          email: localStorage.getItem("admin_email") || "",
+        },
+        notes: {
+          plan_id: plan.id,
+        },
+        theme: {
+          color: "#2563eb",
+        },
+        handler: async function (response) {
+          // called on successful payment
+          try {
+            await api.post("subscriptions/verify-payment/", {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              plan_id: plan.id,
+            });
+
+            alert("Payment successful and subscription activated.");
+            await loadTenantSummary();
+          } catch (err) {
+            console.error(
+              "VERIFY PAYMENT ERROR:",
+              err.response?.data || err.message
+            );
+            alert(
+              "Payment was captured but verification failed. Contact support."
+            );
+          }
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+
+      rzp.on("payment.failed", function (response) {
+        console.error("PAYMENT FAILED:", response);
+        alert("Payment failed. Please try again.");
+      });
+
+      rzp.open();
+    } catch (err) {
+      console.error("CREATE ORDER ERROR:", err.response?.data || err.message);
+      const status = err.response?.status;
+      if (status === 401) {
+        localStorage.removeItem("access");
+        navigate("/login");
+        return;
+      }
+      setError("Failed to initiate payment. Please try again.");
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
+  // ---------- DERIVED VALUES ----------
   const currentPlan = tenantSummary?.current_plan || null;
   const counts = tenantSummary?.counts || { students: 0, teachers: 0, staff: 0 };
 
@@ -78,13 +169,12 @@ export default function AdminDashboard() {
     !!currentPlan &&
     (currentPlan.is_trial || (currentPlan.name || "").toLowerCase() === "trial");
 
-  // match the current plan against the full plans list to show detailed info
   const planDetails =
     currentPlan && plans.length
       ? plans.find((p) => p.id === currentPlan.id) || null
       : null;
 
-  // fallback days-left calculation if backend didn't send days_left
+  // days left
   let daysLeft = currentPlan?.days_left;
   if (
     (daysLeft === undefined || daysLeft === null) &&
@@ -104,13 +194,13 @@ export default function AdminDashboard() {
     );
   }
 
-  // sidebar menu config
+  // ---------- SIDEBAR MENU ----------
   const menuItems = [
     { name: "Dashboard", icon: <BookOpen size={18} />, path: "/dashboard" },
     { name: "Students", icon: <Users size={18} />, path: "/students" },
     { name: "Teachers", icon: <UserCog size={18} />, path: "/teachers" },
     { name: "Parents", icon: <UserCog size={18} />, path: "/parents" },
-    { name: "School Details", icon: <School size={18} />, path: "/school" }, // future
+    { name: "School Details", icon: <School size={18} />, path: "/school" },
   ];
 
   return (
@@ -322,13 +412,25 @@ export default function AdminDashboard() {
                       ? plan.features.join(", ")
                       : String(plan.features ?? "")}
                   </p>
+
+                  <button
+                    type="button"
+                    onClick={() => handleBuyPlan(plan)}
+                    disabled={
+                      paymentLoading ||
+                      (currentPlan && currentPlan.id === plan.id && !isTrial)
+                    }
+                    className="mt-3 inline-flex items-center justify-center rounded-lg bg-green-600 text-white text-xs font-medium px-3 py-1.5 disabled:opacity-60 hover:bg-green-700 transition"
+                  >
+                    {paymentLoading ? "Processing..." : "Buy / Upgrade"}
+                  </button>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* FALLBACK: show plans always if tenant is trial or if user wants to browse */}
+        {/* FALLBACK: show plans always if not trial */}
         {!isTrial && plans.length > 0 && (
           <div className="mb-6">
             <h3 className="text-lg font-semibold text-slate-800 mb-3">
@@ -350,13 +452,29 @@ export default function AdminDashboard() {
                     Price:{" "}
                     <span className="font-semibold">₹{plan.price}</span>
                   </p>
+
+                  <button
+                    type="button"
+                    onClick={() => handleBuyPlan(plan)}
+                    disabled={
+                      paymentLoading ||
+                      (currentPlan && currentPlan.id === plan.id)
+                    }
+                    className="mt-3 inline-flex items-center justify-center rounded-lg bg-green-600 text-white text-xs font-medium px-3 py-1.5 disabled:opacity-60 hover:bg-green-700 transition"
+                  >
+                    {paymentLoading
+                      ? "Processing..."
+                      : currentPlan && currentPlan.id === plan.id
+                      ? "Current Plan"
+                      : "Change Plan"}
+                  </button>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* STAT CARDS – USING REAL COUNTS */}
+        {/* STAT CARDS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <div className="bg-white p-5 rounded-xl shadow hover:shadow-lg transition">
             <h3 className="text-slate-600">Total Students</h3>

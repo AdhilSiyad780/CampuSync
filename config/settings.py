@@ -165,3 +165,7 @@ DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER or "no-repl
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 # If you use server-side Google token validation and need the secret:
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
+
+
+RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID',"")
+RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET',"")
