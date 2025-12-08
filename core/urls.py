@@ -1,5 +1,8 @@
 from django.urls import path
-from .views import SuperAdminLoginView,SuperAdminProfileView,AdminSignupSendOTPView,AdminVerifyOTPView,AdminSignupView,GoogleAuthView,AdminLoginView
+from .views import (SuperAdminLoginView,SuperAdminProfileView,
+                    AdminSignupSendOTPView,AdminVerifyOTPView,AdminSignupView,
+                    GoogleAuthView,AdminLoginView,
+                    TenantListForSuperadminView,StudentLoginView,TeacherLoginView)
 
 
 urlpatterns = [
@@ -11,6 +14,10 @@ urlpatterns = [
     path("signup/", AdminSignupView.as_view(), name="admin_signup"),
     path("auth/google-login/", GoogleAuthView.as_view(), name="google_login"),
     path("login/", AdminLoginView.as_view(), name="admin_login"),
+    path('superadmin/tenants/',TenantListForSuperadminView.as_view(),name='superadmin-tenants-list'),
+
+    path('student/login/',StudentLoginView.as_view(),name='student_login'),
+    path("teacher/login/", TeacherLoginView.as_view(), name="teacher_login"),
 
    
     

@@ -14,6 +14,8 @@ class SubscriptionPlanListView(generics.ListAPIView):
     queryset = SubscriptionPlan.objects.all()
     serializer_class = SubscriptionPlanSerializer
     permission_classes = [IsAuthenticated, IsSuperAdminOrAdmin]
+    def get_queryset(self):
+        return SubscriptionPlan.objects.filter(price__gt=0)
 
 
 class SubscriptionPlanCreateView(generics.CreateAPIView):

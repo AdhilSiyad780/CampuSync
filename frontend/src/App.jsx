@@ -16,7 +16,14 @@ import Layout from "./componets/Layout";
 import ProtectedRoute from "./componets/ProtectedRoute";
 import SuperAdminProfile from "./pages/SuperAdminProfile";
 import SubscriptionPlans from "./pages/SubscriptionPlans";
- 
+import SuperAdminTenants  from "./pages/SuperAdminTenants.jsx";
+
+// ---------- STUDENT PAGES ----------
+import StudentLoginPage from "./pages/students/StudentLogin.jsx";
+import StudentDashboard from "./pages/students/StudentDashboard.jsx";
+//.............TEACHER PAGEs...............
+import TeacherLogin from "./pages/teacher/TeacherLogin.jsx";
+import TeacherDashboard from './pages/teacher/TeacherDashboard.jsx'
 
 export default function App() {
   return (
@@ -37,6 +44,13 @@ export default function App() {
         {/* ===================== SUPERADMIN AUTH ROUTE ===================== */}
         <Route path="/superadmin/login" element={<LoginPage />} />
 
+        {/* ===================== STUDENT AUTH ROUTE ===================== */}
+        <Route path="/student/login" element={<StudentLoginPage />} />
+         <Route path="/student/Dashboard" element={<StudentDashboard />} />
+        {/* ===================== STUDENT AUTH ROUTE ===================== */}
+        <Route path="/teacher/login" element={<TeacherLogin />} />
+         <Route path="/teacher/Dashboard" element={<TeacherDashboard />} /> 
+
         {/* ===================== PROTECTED SUPERADMIN AREA ===================== */}
         <Route
           path="/superadmin"
@@ -48,6 +62,10 @@ export default function App() {
         >
           {/* /superadmin -> profile by default */}
           <Route index element={<SuperAdminProfile />} />
+
+          {/* /superadmin/tenants */}
+          <Route path="tenants" element={<SuperAdminTenants/>} />
+
 
           {/* /superadmin/profile */}
           <Route path="profile" element={<SuperAdminProfile />} />

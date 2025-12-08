@@ -537,3 +537,100 @@ class AdminLoginSerializer(serializers.Serializer):
             } if tenant else None,
             "needs_setup": not getattr(user, "is_setup_complete", False),
         }
+   
+class TenantWithPlanSerializer(serializers.ModelSerializer):
+    current_plan = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Tenant
+        fields = [
+            "id",
+            "tenant_id",
+            "instance_name",
+            "email",
+            "phone",
+            "status",
+            "created_at",
+            "current_plan",
+        ]
+
+    def get_current_plan(self, obj):
+        # latest active subscription for this tenant
+        sub = (
+            Subscription.objects
+            .filter(tenant=obj, is_active=True)
+            .order_by("-start_date")
+            .first()
+        )
+        if not sub:
+            return None
+
+        plan = sub.plan
+
+        days_left = None
+        if sub.expiry_date:                            # ✅ use sub, not plan
+            delta = sub.expiry_date - timezone.now()   # ✅ use sub.expiry_date
+            days_left = max(delta.days, 0)
+
+        return {
+            "plan_id": plan.id if plan else None,
+            "plan_name": plan.plan_name if plan else "",
+            "price": str(plan.price) if plan else None,
+            "status": sub.status,
+            "start_date": sub.start_date,
+            "expiry_date": sub.expiry_date,   # ✅ from sub
+            "days_left": days_left,
+            "is_active": sub.is_active,
+        }
+    
+
+
+# ================================Student Login ======================================
+
+class StudentLoginSerializers(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
+    def validate(self,attr):
+        request = self.context.get('request')
+        email = attr.get('email')
+        password = attr.get('password')
+        if not email or not password:
+            raise serializers.ValidationError("Email and password are required.")
+        user = authenticate(request=request,email=email,password=password)
+        if not user:
+            raise serializers.ValidationError("Invalid email or password.")
+        if user.user_type!='student':
+            raise serializers.ValidationError('This account is not a student account')
+        if user.status != "active":
+            raise serializers.ValidationError("This account is not active.")
+        attr['user']=user 
+        return attr
+    def create(self, validated_data):
+        return validated_data['user']
+    
+
+
+# ======================================teacher login ============================================
+
+
+
+class TeacherLoginSerializers(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
+    def validate(self,attr):
+        request = self.context.get('request')
+        email = attr.get('email')
+        password = attr.get('password')
+        if not email or not password:
+            raise serializers.ValidationError("Email and password are required.")
+        user = authenticate(request=request,email=email,password=password)
+        if not user:
+            raise serializers.ValidationError("Invalid email or password.")
+        if user.user_type!='teacher':
+            raise serializers.ValidationError('This account is not a teacher account')
+        if user.status != "active":
+            raise serializers.ValidationError("This account is not active.")
+        attr['user']=user 
+        return attr
+    def create(self, validated_data):
+        return validated_data['user']

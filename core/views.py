@@ -1,7 +1,11 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .serializer import SuperAdminLoginSerializer,AdminVerifyOTPSerializer,AdminSignupCompleteLoginflow,SuperAdminProfileSerializer,SuperAdminProfileUpdateSerializer,AdminSignupSendOTPSerializer,AdminSignupComlpeteSignupflow,AdminLoginSerializer
+from .serializer import( SuperAdminLoginSerializer,AdminVerifyOTPSerializer,
+                        AdminSignupCompleteLoginflow,SuperAdminProfileSerializer,
+                        SuperAdminProfileUpdateSerializer,AdminSignupSendOTPSerializer,
+                        AdminSignupComlpeteSignupflow,AdminLoginSerializer,
+                        TenantWithPlanSerializer,StudentLoginSerializers,TeacherLoginSerializers)
 
 from rest_framework.permissions import AllowAny
 from rest_framework.permissions import IsAuthenticated
@@ -13,6 +17,17 @@ from google.auth.transport import requests as google_requests
 from django.conf import settings
 from .models import User, Tenant
 from .serializer import GoogleAuthSerializer
+from .permission import IsStudent
+
+# core/views.py
+from rest_framework import generics
+from rest_framework.permissions import IsAuthenticated
+
+from .models import Tenant
+
+from  subscription.permissions import IsSuperAdminOrAdmin  # or a stricter IsSuperAdmin if you have it
+
+
 
 class SuperAdminLoginView(APIView):
     permission_classes = [AllowAny] 
@@ -263,3 +278,97 @@ class AdminLoginView(APIView):
         serializer = AdminLoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         return Response(serializer.validated_data, status=status.HTTP_200_OK)
+    
+
+
+# ===========================================student Login =======================================
+class StudentLoginView(APIView):
+    permission_classes = [AllowAny]
+    def post(self,request):
+        serializer = StudentLoginSerializers(
+            data=request.data,context={'request':request}
+        )
+        serializer.is_valid(raise_exception=True)
+
+
+        user = serializer.validated_data['user']
+        refresh = RefreshToken.for_user(user)
+        access = refresh.access_token
+        student_profile = getattr(user,'studentprofile',None)
+        profile_data = {}
+        if  student_profile:
+            profile_data = {
+                "id": student_profile.id,
+                "admission_number": getattr(student_profile, "admission_number", None),
+                "class_id": getattr(student_profile, "class_id", None),
+                "section": getattr(student_profile, "section", ""),
+                "roll_number": getattr(student_profile, "roll_number", None),
+            }
+        data  = {
+            'access':str(access),
+            'refresh':str(refresh),
+            'user':{
+                'id':user.id,
+                'fullname':user.fullname,
+                'email':user.email,
+                'user_type':user.user_type
+            },
+            'profile_data':profile_data
+        }
+        return Response(data,status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+# ===========================================student Login =======================================
+class TeacherLoginView(APIView):
+    permission_classes = [AllowAny]
+    def post(self,request):
+        serializer = TeacherLoginSerializers(
+            data=request.data,context={'request':request}
+        )
+        serializer.is_valid(raise_exception=True)
+
+
+        user = serializer.validated_data['user']
+        refresh = RefreshToken.for_user(user)
+        access = refresh.access_token
+        student_profile = getattr(user,'studentprofile',None)
+        profile_data = {}
+        if  student_profile:
+            profile_data = {
+                "id": student_profile.id,
+                "admission_number": getattr(student_profile, "admission_number", None),
+                "class_id": getattr(student_profile, "class_id", None),
+                "section": getattr(student_profile, "section", ""),
+                "roll_number": getattr(student_profile, "roll_number", None),
+            }
+        data  = {
+            'access':str(access),
+            'refresh':str(refresh),
+            'user':{
+                'id':user.id,
+                'fullname':user.fullname,
+                'email':user.email,
+                'user_type':user.user_type
+            },
+            'profile_data':profile_data
+        }
+        return Response(data,status=status.HTTP_200_OK)
+
+
+
+    # ==============================tenent list in superadmin ========================
+
+class TenantListForSuperadminView(generics.ListAPIView):
+    """
+    List all tenants with their current subscription plan.
+    Intended for superadmin dashboard.
+    """
+    queryset = Tenant.objects.all().order_by("-created_at")
+    serializer_class = TenantWithPlanSerializer
+    permission_classes = [IsAuthenticated, IsSuperAdminOrAdmin]  # tighten if needed
+

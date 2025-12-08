@@ -5,6 +5,10 @@ from .models import StudentProfile
 from django.utils.crypto import get_random_string
 from django.utils import timezone
 from .models import User, TeacherProfile
+from django.conf import settings
+from django.core.mail import send_mail
+import os
+
 
 class StudentProfileSerializer(serializers.ModelSerializer):
     # User fields
@@ -60,11 +64,11 @@ class StudentProfileSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"email": "User with this email already exists."})
 
         # create student User
-        temp_password = get_random_string(12)
+        raw_password = dob.strftime("%d%m%Y")
         student_user = User.objects.create_user(
             email=email,
             fullname=fullname,
-            password=temp_password,
+            password=raw_password,
         )
         student_user.tenant = tenant
         student_user.phone = phone
@@ -82,6 +86,29 @@ class StudentProfileSerializer(serializers.ModelSerializer):
             tenant=tenant,
             **validated_data,
         )
+        link = os.getenv('FRONTEND_LINK_STUDENT')
+        try:
+            send_mail(
+                subject="Your Student Account Credentials",
+                message=(
+    f"Hi {student_user.fullname},\n\n"
+    f"Your student account has been created.\n\n"
+    f"🔐 Login Details:\n"
+    f"Email: {student_user.email}\n"
+    f"Password: {raw_password} (DOB in DDMMYYYY)\n\n"
+    f"🎓 Student Dashboard:\n"
+    f"{link}\n\n"
+    f"Please log in and change your password immediately."
+),
+                from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+                recipient_list=[student_user.email],
+                fail_silently=True,  # avoid breaking create if email config is wrong
+            )
+        except Exception:
+            pass
+           
+            
+
         return profile
 
     def update(self, instance, validated_data):
@@ -149,31 +176,64 @@ class TeacherSerializer(serializers.ModelSerializer):
         if not tenant:
             raise serializers.ValidationError("Tenant not found for this admin.")
 
+        # nested user data
         user_data = validated_data.pop("user")
 
         email = user_data["email"]
         if User.objects.filter(email__iexact=email).exists():
-            raise serializers.ValidationError({"email": "A user with this email already exists."})
+            raise serializers.ValidationError(
+                {"email": "A user with this email already exists."}
+            )
+
+        dob = user_data.get("DOB")
+        if not dob:
+            # you said password = DOB, so DOB must exist
+            raise serializers.ValidationError(
+                {"DOB": "Date of birth is required to generate the initial password."}
+            )
+
+        # choose the password format for DOB → e.g. DDMMYYYY
+        raw_password = dob.strftime("%d%m%Y")  # 01-02-2000 -> "01022000"
 
         user = User(
             email=email,
             fullname=user_data.get("fullname", ""),
             phone=user_data.get("phone", ""),
-            DOB=user_data.get("DOB", None),
+            DOB=dob,
             gender=user_data.get("gender", ""),
             user_type="teacher",
             status="active",
             tenant=tenant,
             is_staff=False,
         )
-        # teacher created by admin, no password yet
-        user.set_unusable_password()
+        user.set_password(raw_password)
         user.save()
 
         teacher = TeacherProfile.objects.create(
             user=user,
-            **validated_data
+            **validated_data,
         )
+
+        # send email with credentials
+        try:
+            send_mail(
+                subject="Your Teacher Account Credentials",
+                message=(
+                    f"Hi {user.fullname},\n\n"
+                    f"Your teacher account has been created.\n\n"
+                    f"Login details:\n"
+                    f"Email: {user.email}\n"
+                    f"Password: {raw_password} (your date of birth in DDMMYYYY format)\n\n"
+                    f"Please log in and change your password immediately."
+                ),
+                from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+                recipient_list=[user.email],
+                fail_silently=True,  # avoid breaking create if email config is wrong
+            )
+        except Exception:
+            # don't block creation if email fails
+            pass
+
         return teacher
 
     def update(self, instance, validated_data):
