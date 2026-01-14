@@ -9,7 +9,6 @@ function AdminSignupComplete() {
 
   // Incoming state
   const verifiedEmail = location.state?.email || "";
-  const signupToken = location.state?.signupToken || null;
   const fromGoogle = !!location.state?.fromGoogle;
   const fromLogin = !!location.state?.fromLogin;
   console.log(fromLogin)
@@ -20,8 +19,9 @@ function AdminSignupComplete() {
   const initialFullname = location.state?.fullname || "";
 
   // allow OTP, Google or Login flows
-  const hasValidEntry =
-    Boolean(verifiedEmail) && (Boolean(signupToken) || fromGoogle || fromLogin);
+  const hasValidEntry = Boolean(localStorage.getItem("access"));
+
+    
 
   // If flow is invalid show friendly message
   if (!hasValidEntry) {
@@ -72,7 +72,7 @@ function AdminSignupComplete() {
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
-  const showPasswordInputs = Boolean(signupToken) && !initialPassword;
+  
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -95,45 +95,16 @@ function AdminSignupComplete() {
     try {
       setLoading(true);
 
-      let res;
-      if (signupToken) {
-        // OTP SIGNUP: complete signup using signup_token (backend already expects this)
-        res = await api.post("/signup/", {
-          email: formData.email.trim(),
-          signup_token: signupToken,
-          fullname: formData.fullname.trim(),
-          phone: formData.phone.trim(),
-          instance_name: formData.instance_name.trim(),
-          tenant_email: formData.tenant_email.trim() || formData.email.trim(),
-          tenant_phone: formData.tenant_phone.trim(),
-          tenant_address: formData.tenant_address.trim(),
-        });
+    await api.post("/signup/", {
+      fullname: formData.fullname.trim(),
+      phone: formData.phone.trim(),
+      instance_name: formData.instance_name.trim(),
+      tenant_email: formData.tenant_email.trim() || formData.email.trim(),
+      tenant_phone: formData.tenant_phone.trim(),
+      tenant_address: formData.tenant_address.trim(),
+    });
 
-        // store tokens returned by full signup
-        if (res?.data?.access) localStorage.setItem("access", res.data.access);
-        if (res?.data?.refresh)
-          localStorage.setItem("refresh", res.data.refresh);
-      } else {
-        // Existing user (Google or Login) -> only setup tenant & profile
-        // Backend must accept this route and attach tenant to current user (authenticated)
-        // For Google, tokens should already be set at Google login step.
-        // For Login flow, tokens are set in login response.
-        res = await api.post("/signup/", {
-          fullname: formData.fullname.trim(),
-          email:formData.email.trim(),
-          phone: formData.phone.trim(),
-          instance_name: formData.instance_name.trim(),
-          tenant_email: formData.tenant_email.trim() || formData.email.trim(),
-          tenant_phone: formData.tenant_phone.trim(),
-          tenant_address: formData.tenant_address.trim(),
-        });
-
-        // backend should mark user.is_setup_complete true and return success
-      }
-
-      setSuccessMsg("Registration completed successfully.");
-      // small delay if you want user to read message; otherwise direct redirect
-      navigate("/dashboard");
+    navigate("/dashboard");
     } catch (err) {
       console.error("SIGNUP COMPLETE ERROR:", err.response?.data || err.message);
       console.log(err)
@@ -293,16 +264,10 @@ function AdminSignupComplete() {
                 {loading ? "Completing registration..." : "Complete Registration"}
               </button>
 
-              {/* Show skip only for existing accounts (fromGoogle or fromLogin) */}
-              {(fromGoogle || fromLogin || signupToken)  && (
-                <button
-                  type="button"
-                  onClick={()=>navigate('/dashboard')}
-                  className="inline-flex items-center justify-center rounded-lg bg-slate-200 text-slate-800 text-sm font-medium px-4 py-2.5 hover:bg-slate-300 transition"
-                >
-                  {skipLoading ? "Skipping..." : "Skip for now"}
-                </button>
-              )}
+              <button onClick={() => navigate("/dashboard")}>
+              Skip for now
+              </button>
+
             </div>
           </div>
         </form>

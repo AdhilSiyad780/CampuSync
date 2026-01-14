@@ -109,16 +109,16 @@ function AdminSignupEmailStep() {
         otp: trimmedOtp,
       });
 
-      const { signup_token } = res.data;
-      console.log(signup_token)
+   
 
       setSuccessMsg("OTP verified successfully.");
+      localStorage.setItem("access", res.data.access);
+      localStorage.setItem("refresh", res.data.refresh);
 
       // Go to registration (complete) page
       navigate("/signup/complete", {
         state: {
           email: trimmedEmail,
-          signupToken: signup_token,
           fromGoogle: false,
         },
       });
@@ -175,6 +175,7 @@ function AdminSignupEmailStep() {
       setErrorMsg(
         err.response?.data?.detail || "Google login failed. Please try again."
       );
+      
     } finally {
       setLoading(false);
     }

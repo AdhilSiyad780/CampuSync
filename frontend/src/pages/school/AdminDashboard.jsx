@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Menu, X, Users, School, UserCog, BookOpen, Info } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Menu, X, Users, School, UserCog, BookOpen, Info, LayoutDashboard, LogOut, ChevronRight, CreditCard } from "lucide-react";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import api from "../../api/axios";
 
 export default function AdminDashboard() {
@@ -13,8 +13,15 @@ export default function AdminDashboard() {
   const [paymentLoading, setPaymentLoading] = useState(false);
 
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // ---------- INIT LOAD ----------
+  const handleLogout = () => {
+    localStorage.removeItem("access");
+    localStorage.removeItem("admin_fullname");
+    localStorage.removeItem("admin_email");
+    navigate("/login");
+  };
+
   useEffect(() => {
     const init = async () => {
       try {
@@ -24,99 +31,61 @@ export default function AdminDashboard() {
       }
     };
     init();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ---------- LOAD PLANS ----------
   const loadPlans = async () => {
     try {
       const res = await api.get("subscriptions/plans/");
       setPlans(res.data || []);
     } catch (err) {
-      console.error("LOAD PLANS ERROR:", err.response?.data || err.message);
       const status = err.response?.status;
       if (status === 401) {
         localStorage.removeItem("access");
         navigate("/login");
         return;
       }
-      if (status === 403) {
-        setError("You don't have permission to view subscription plans.");
-        return;
-      }
-      setError("Failed to load subscription plans.");
+      setError(status === 403 ? "Permission denied." : "Failed to load plans.");
     }
   };
 
-  // ---------- LOAD TENANT SUMMARY ----------
   const loadTenantSummary = async () => {
     try {
       const res = await api.get("subscriptions/tenant-summary/");
       setTenantSummary(res.data || null);
     } catch (err) {
-      console.error(
-        "LOAD TENANT SUMMARY ERROR:",
-        err.response?.data || err.message
-      );
-      const status = err.response?.status;
-      if (status === 401) {
+      if (err.response?.status === 401) {
         localStorage.removeItem("access");
         navigate("/login");
         return;
       }
-      setError((prev) =>
-        prev
-          ? prev
-          : "Could not load tenant subscription details. You may need to finish setup."
-      );
+      setError((prev) => prev || "Could not load subscription details.");
     }
   };
 
-  // ---------- RAZORPAY: BUY / UPGRADE PLAN ----------
   const handleBuyPlan = async (plan) => {
     setError("");
     setPaymentLoading(true);
-
-    // safety: Razorpay script check
     if (!window.Razorpay) {
-      alert("Payment system not loaded. Refresh the page and try again.");
+      alert("Payment system not loaded.");
       setPaymentLoading(false);
       return;
     }
-
     try {
-      // 1) Create order in backend
-      const res = await api.post("subscriptions/create-order/", {
-        plan_id: plan.id,
-      });
-
-      const {
-        order_id,
-        amount,
-        currency,
-        razorpay_key_id,
-      } = res.data;
-
-      // 2) Configure Razorpay checkout
+      const res = await api.post("subscriptions/create-order/", { plan_id: plan.id });
+      const { order_id, amount, currency, razorpay_key_id } = res.data;
       const options = {
         key: razorpay_key_id,
-        amount: amount,
-        currency: currency,
+        amount,
+        currency,
         name: "Campusync",
         description: `Subscription - ${plan.plan_name}`,
-        order_id: order_id,
+        order_id,
         prefill: {
           name: localStorage.getItem("admin_fullname") || "",
           email: localStorage.getItem("admin_email") || "",
         },
-        notes: {
-          plan_id: plan.id,
-        },
-        theme: {
-          color: "#2563eb",
-        },
+        theme: { color: "#4f46e5" },
         handler: async function (response) {
-          // called on successful payment
           try {
             await api.post("subscriptions/verify-payment/", {
               razorpay_order_id: response.razorpay_order_id,
@@ -124,395 +93,193 @@ export default function AdminDashboard() {
               razorpay_signature: response.razorpay_signature,
               plan_id: plan.id,
             });
-
-            alert("Payment successful and subscription activated.");
+            alert("Payment successful!");
             await loadTenantSummary();
           } catch (err) {
-            console.error(
-              "VERIFY PAYMENT ERROR:",
-              err.response?.data || err.message
-            );
-            alert(
-              "Payment was captured but verification failed. Contact support."
-            );
+            alert("Verification failed.");
           }
         },
       };
-
       const rzp = new window.Razorpay(options);
-
-      rzp.on("payment.failed", function (response) {
-        console.error("PAYMENT FAILED:", response);
-        alert("Payment failed. Please try again.");
-      });
-
       rzp.open();
     } catch (err) {
-      console.error("CREATE ORDER ERROR:", err.response?.data || err.message);
-      const status = err.response?.status;
-      if (status === 401) {
-        localStorage.removeItem("access");
-        navigate("/login");
-        return;
-      }
-      setError("Failed to initiate payment. Please try again.");
+      setError("Failed to initiate payment.");
     } finally {
       setPaymentLoading(false);
     }
   };
 
-  // ---------- DERIVED VALUES ----------
   const currentPlan = tenantSummary?.current_plan || null;
   const counts = tenantSummary?.counts || { students: 0, teachers: 0, staff: 0 };
+  const isTrial = !!currentPlan && (currentPlan.is_trial || (currentPlan.name || "").toLowerCase() === "trial");
+  const planDetails = currentPlan && plans.length ? plans.find((p) => p.id === currentPlan.id) || null : null;
 
-  const isTrial =
-    !!currentPlan &&
-    (currentPlan.is_trial || (currentPlan.name || "").toLowerCase() === "trial");
-
-  const planDetails =
-    currentPlan && plans.length
-      ? plans.find((p) => p.id === currentPlan.id) || null
-      : null;
-
-  // days left
   let daysLeft = currentPlan?.days_left;
-  if (
-    (daysLeft === undefined || daysLeft === null) &&
-    currentPlan?.expires_at
-  ) {
-    const now = new Date();
+  if ((daysLeft === undefined || daysLeft === null) && currentPlan?.expires_at) {
     const exp = new Date(currentPlan.expires_at);
-    const diffMs = exp - now;
-    daysLeft = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    daysLeft = Math.ceil((exp - new Date()) / (1000 * 60 * 60 * 24));
   }
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-100">
-        <p className="text-slate-600 text-sm">Loading dashboard...</p>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
       </div>
     );
   }
 
-  // ---------- SIDEBAR MENU ----------
   const menuItems = [
-    { name: "Dashboard", icon: <BookOpen size={18} />, path: "/dashboard" },
-    { name: "Students", icon: <Users size={18} />, path: "/students" },
-    { name: "Teachers", icon: <UserCog size={18} />, path: "/teachers" },
-    { name: "Parents", icon: <UserCog size={18} />, path: "/parents" },
-    { name: "School Details", icon: <School size={18} />, path: "/school" },
+    { name: "Dashboard", icon: <LayoutDashboard size={20} />, path: "/dashboard" },
+    { name: "Students", icon: <Users size={20} />, path: "/students" },
+    { name: "Teachers", icon: <UserCog size={20} />, path: "/teachers" },
+    { name: "Parents", icon: <Users size={20} />, path: "/parents" },
+    { name: "School Details", icon: <School size={20} />, path: "/school" },
   ];
 
   return (
-    <div className="flex min-h-screen bg-slate-100">
+    <div className="flex min-h-screen bg-[#F8FAFC]">
       {/* SIDEBAR */}
-      <div
-        className={`${
-          sidebarOpen ? "w-64" : "w-16"
-        } bg-white shadow-md transition-all duration-300 overflow-hidden`}
-      >
-        <div className="flex items-center justify-between p-4 border-b">
-          <h1
-            className={`text-xl font-bold text-blue-600 transition-opacity duration-300 ${
-              sidebarOpen ? "opacity-100" : "opacity-0"
-            }`}
-          >
-            Campusync
-          </h1>
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 bg-slate-200 rounded-full"
-          >
+      <aside className={`${sidebarOpen ? "w-64" : "w-20"} bg-[#1E293B] transition-all duration-300 flex flex-col shadow-xl z-20`}>
+        <div className="h-16 flex items-center justify-between px-5 border-b border-slate-700/50">
+          {sidebarOpen && <span className="text-xl font-bold text-white tracking-tight">Campusync</span>}
+          <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition-colors">
             {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
           </button>
         </div>
 
-        {/* Sidebar Menu */}
-        <nav className="mt-4">
-          {menuItems.map((item, i) => (
-            <div
-              key={i}
-              onClick={() => item.path && navigate(item.path)}
-              className="flex items-center gap-3 px-4 py-3 hover:bg-blue-50 cursor-pointer transition"
+        <nav className="flex-1 mt-6 px-3 space-y-1">
+          {menuItems.map((item) => (
+            <Link
+              key={item.name}
+              to={item.path}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 ${
+                location.pathname === item.path ? "bg-indigo-600 text-white shadow-lg shadow-indigo-900/20" : "text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+              }`}
             >
               {item.icon}
-              {sidebarOpen && <span className="text-slate-700">{item.name}</span>}
-            </div>
+              {sidebarOpen && <span className="font-medium text-sm">{item.name}</span>}
+            </Link>
           ))}
         </nav>
-      </div>
+
+        <button onClick={handleLogout} className="m-3 flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors">
+          <LogOut size={20} />
+          {sidebarOpen && <span className="font-medium text-sm">Logout</span>}
+        </button>
+      </aside>
 
       {/* MAIN CONTENT */}
-      <div className="flex-1 p-6">
+      <main className="flex-1 flex flex-col h-screen overflow-hidden">
         {/* TOPBAR */}
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-semibold text-slate-800">Dashboard</h2>
+        <header className="h-16 bg-white border-b border-slate-200 px-8 flex items-center justify-between shrink-0">
+          <h2 className="text-lg font-bold text-slate-800 tracking-tight">Dashboard Overview</h2>
+          <Link to="/profile" className="flex items-center gap-3 group">
+            <div className="text-right hidden sm:block">
+              <p className="text-sm font-bold text-slate-700 leading-none group-hover:text-indigo-600 transition-colors">{localStorage.getItem("admin_fullname") || "Admin"}</p>
+              <p className="text-[11px] text-slate-500 mt-1 uppercase font-semibold tracking-wider">School Admin</p>
+            </div>
+            <img src="https://api.dicebear.com/7.x/initials/svg?seed=A" alt="avatar" className="w-9 h-9 rounded-full bg-slate-100 border border-slate-200" />
+          </Link>
+        </header>
 
-          <div className="flex items-center gap-4">
-            <p className="text-slate-600 text-sm">
-              {localStorage.getItem("admin_fullname") || "Admin"}
-            </p>
-            <img
-              src="https://api.dicebear.com/7.x/initials/svg?seed=A"
-              alt="profile"
-              className="w-10 h-10 rounded-full bg-slate-200"
-            />
-          </div>
-        </div>
+        <div className="flex-1 overflow-y-auto p-8 space-y-8">
+          {error && <div className="bg-red-50 border-l-4 border-red-500 p-4 text-sm text-red-700 rounded shadow-sm">{error}</div>}
 
-        {error && (
-          <p className="mb-4 text-sm text-red-600 bg-red-50 border border-red-100 rounded-md px-3 py-2">
-            {error}
-          </p>
-        )}
-
-        {/* CURRENT PLAN + TRIAL INFO */}
-        {currentPlan ? (
-          <div
-            className={`mb-6 rounded-xl border px-5 py-4 ${
-              isTrial ? "bg-amber-50 border-amber-200" : "bg-blue-50 border-blue-200"
-            }`}
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
-                  Current Plan:{" "}
-                  <span className="text-blue-700">
-                    {currentPlan.name || "Unknown"}
-                  </span>
-                  {isTrial && (
-                    <span className="text-xs font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
-                      Trial
-                    </span>
-                  )}
-                </h3>
-
-                {typeof daysLeft === "number" && (
-                  <p className="text-sm text-slate-700 mt-1">
-                    {daysLeft > 0
-                      ? `Plan expires in ${daysLeft} day${
-                          daysLeft === 1 ? "" : "s"
-                        }.`
-                      : "Plan has expired or expires today."}
+          {/* SUBSCRIPTION STATUS */}
+          {currentPlan ? (
+            <div className={`p-6 rounded-2xl border ${isTrial ? "bg-amber-50 border-amber-200 text-amber-900" : "bg-indigo-50 border-indigo-200 text-indigo-900"} shadow-sm relative overflow-hidden`}>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xl font-bold">{currentPlan.name} Plan</h3>
+                    {isTrial && <span className="text-[10px] font-black uppercase tracking-widest bg-amber-200 px-2 py-0.5 rounded">Trial Mode</span>}
+                  </div>
+                  <p className="text-sm opacity-80 font-medium">
+                    {daysLeft > 0 ? `Your subscription remains active for the next ${daysLeft} days.` : "Your plan expires today."}
                   </p>
-                )}
-
-                {currentPlan.expires_at && (
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Expires on:{" "}
-                    <span className="font-medium">
-                      {new Date(currentPlan.expires_at).toLocaleDateString()}
-                    </span>
-                  </p>
-                )}
-
-                {isTrial && (
-                  <p className="text-xs text-amber-700 mt-2">
-                    You are on a trial. Consider upgrading before it ends.
-                  </p>
-                )}
+                </div>
+                <button onClick={() => setShowPlanDetails(!showPlanDetails)} className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl text-xs font-bold border border-slate-200 hover:shadow-md transition-all">
+                  <Info size={14} /> {showPlanDetails ? "Hide Details" : "View Plan Benefits"}
+                </button>
               </div>
 
-              {/* Plan details toggle */}
-              {planDetails && (
-                <button
-                  type="button"
-                  onClick={() => setShowPlanDetails((v) => !v)}
-                  className="inline-flex items-center gap-1 rounded-lg bg-white/70 text-blue-700 text-xs font-medium px-3 py-1 border border-blue-200 hover:bg-white transition"
-                >
-                  <Info size={14} />
-                  {showPlanDetails ? "Hide details" : "View plan details"}
-                </button>
+              {showPlanDetails && planDetails && (
+                <div className="mt-5 pt-5 border-t border-indigo-200/50 grid grid-cols-1 md:grid-cols-3 gap-6 text-sm relative z-10 animate-in fade-in slide-in-from-top-2">
+                   <div className="space-y-1"><p className="text-xs uppercase font-bold opacity-50">Limits</p><p className="font-bold">{planDetails.max_students} Students • {planDetails.max_teachers} Teachers</p></div>
+                   <div className="space-y-1"><p className="text-xs uppercase font-bold opacity-50">Billing</p><p className="font-bold">₹{planDetails.price} / {planDetails.duration_days} Days</p></div>
+                   <div className="space-y-1"><p className="text-xs uppercase font-bold opacity-50">Features</p><p className="font-bold truncate">{Array.isArray(planDetails.features) ? planDetails.features.join(", ") : "Premium Modules"}</p></div>
+                </div>
               )}
             </div>
+          ) : (
+            <div className="p-6 bg-white rounded-2xl border border-slate-200 text-center"><p className="text-slate-500 text-sm">No active subscription found.</p></div>
+          )}
 
-            {/* Detailed plan info */}
-            {showPlanDetails && planDetails && (
-              <div className="mt-4 text-xs text-slate-700 grid grid-cols-1 md:grid-cols-3 gap-3">
+          {/* STATS */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              { label: "Total Students", value: counts.students, icon: <Users className="text-blue-600" />, color: "bg-blue-50" },
+              { label: "Total Teachers", value: counts.teachers, icon: <UserCog className="text-indigo-600" />, color: "bg-indigo-50" },
+              { label: "Administrative Staff", value: counts.staff, icon: <School className="text-emerald-600" />, color: "bg-emerald-50" },
+            ].map((stat, i) => (
+              <div key={i} className="bg-white p-6 rounded-2xl border border-slate-200 flex items-center justify-between hover:shadow-lg hover:shadow-slate-200/50 transition-all">
                 <div>
-                  <p>
-                    <span className="font-semibold">Duration:</span>{" "}
-                    {planDetails.duration_days} days
-                  </p>
-                  <p>
-                    <span className="font-semibold">Price:</span> ₹
-                    {planDetails.price}
-                  </p>
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{stat.label}</p>
+                  <p className="text-3xl font-black text-slate-800 mt-1">{stat.value || 0}</p>
                 </div>
-                <div>
-                  <p>
-                    <span className="font-semibold">Max Students:</span>{" "}
-                    {planDetails.max_students ?? "Unlimited"}
-                  </p>
-                  <p>
-                    <span className="font-semibold">Max Teachers:</span>{" "}
-                    {planDetails.max_teachers ?? "Unlimited"}
-                  </p>
-                  <p>
-                    <span className="font-semibold">Max Admins:</span>{" "}
-                    {planDetails.max_admins ?? "Unlimited"}
-                  </p>
+                <div className={`p-3 rounded-xl ${stat.color}`}>{stat.icon}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* PLANS SECTION */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-slate-800">Subscription Plans</h3>
+              <p className="text-xs font-semibold text-indigo-600">Select a plan to upgrade</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {plans.map((plan) => (
+                <div key={plan.id} className="bg-white rounded-2xl border border-slate-200 p-6 flex flex-col group hover:border-indigo-400 transition-all">
+                  <div className="flex justify-between items-start mb-4">
+                    <h4 className="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors uppercase text-sm tracking-wide">{plan.plan_name}</h4>
+                    <CreditCard size={18} className="text-slate-300" />
+                  </div>
+                  <p className="text-3xl font-black text-slate-900 mb-1">₹{plan.price}</p>
+                  <p className="text-[10px] text-slate-400 font-bold mb-4 italic uppercase">{plan.duration_days} Days Access</p>
+                  <p className="text-xs text-slate-500 leading-relaxed mb-6 flex-1">{plan.description}</p>
+                  <button
+                    onClick={() => handleBuyPlan(plan)}
+                    disabled={paymentLoading || (currentPlan && currentPlan.id === plan.id && !isTrial)}
+                    className={`w-full py-3 rounded-xl text-xs font-bold transition-all ${
+                      currentPlan?.id === plan.id && !isTrial 
+                      ? "bg-slate-100 text-slate-400 cursor-not-allowed" 
+                      : "bg-indigo-600 text-white shadow-md shadow-indigo-200 hover:bg-indigo-700"
+                    }`}
+                  >
+                    {paymentLoading ? "Processing..." : currentPlan?.id === plan.id && !isTrial ? "Current Plan" : "Choose Plan"}
+                  </button>
                 </div>
-                <div>
-                  <p className="font-semibold mb-1">Features:</p>
-                  <ul className="list-disc list-inside space-y-0.5">
-                    {Array.isArray(planDetails.features)
-                      ? planDetails.features.map((f, idx) => (
-                          <li key={idx}>{String(f)}</li>
-                        ))
-                      : planDetails.features
-                      ? [String(planDetails.features)].map((f, idx) => (
-                          <li key={idx}>{f}</li>
-                        ))
-                      : "No extra features listed."}
-                  </ul>
+              ))}
+            </div>
+          </div>
+
+          {/* PLACEHOLDERS */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-10">
+            {["Recent Admissions", "Latest Staff"].map((title) => (
+              <div key={title} className="bg-white p-6 rounded-2xl border border-slate-200">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="font-bold text-slate-800">{title}</h3>
+                  <ChevronRight size={18} className="text-slate-400" />
+                </div>
+                <div className="h-32 border-2 border-dashed border-slate-100 rounded-xl flex items-center justify-center text-slate-300 text-xs font-medium italic">
+                  Data visualization placeholder
                 </div>
               </div>
-            )}
-          </div>
-        ) : (
-          <div className="mb-6 rounded-xl border px-5 py-4 bg-white">
-            <p className="text-sm text-slate-600">
-              No active plan found for this tenant.
-            </p>
-          </div>
-        )}
-
-        {/* IF TRIAL → SHOW ALL PLANS AT TOP */}
-        {isTrial && plans.length > 0 && (
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold text-slate-800 mb-3">
-              Available Plans
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {plans.map((plan) => (
-                <div
-                  key={plan.id}
-                  className="bg-white rounded-xl shadow p-4 border border-slate-100"
-                >
-                  <h4 className="font-semibold text-slate-800">
-                    {plan.plan_name.toUpperCase()}
-                  </h4>
-                  <p className="text-xs text-slate-500 mt-1">
-                    {plan.description}
-                  </p>
-                  <p className="text-sm text-slate-700 mt-2">
-                    Duration:{" "}
-                    <span className="font-medium">
-                      {plan.duration_days} days
-                    </span>
-                  </p>
-                  <p className="text-sm text-slate-700">
-                    Price:{" "}
-                    <span className="font-semibold">₹{plan.price}</span>
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Features:{" "}
-                    {Array.isArray(plan.features)
-                      ? plan.features.join(", ")
-                      : String(plan.features ?? "")}
-                  </p>
-
-                  <button
-                    type="button"
-                    onClick={() => handleBuyPlan(plan)}
-                    disabled={
-                      paymentLoading ||
-                      (currentPlan && currentPlan.id === plan.id && !isTrial)
-                    }
-                    className="mt-3 inline-flex items-center justify-center rounded-lg bg-green-600 text-white text-xs font-medium px-3 py-1.5 disabled:opacity-60 hover:bg-green-700 transition"
-                  >
-                    {paymentLoading ? "Processing..." : "Buy / Upgrade"}
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* FALLBACK: show plans always if not trial */}
-        {!isTrial && plans.length > 0 && (
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold text-slate-800 mb-3">
-              All Plans
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {plans.map((plan) => (
-                <div
-                  key={plan.id}
-                  className="bg-white rounded-xl shadow p-4 border border-slate-100"
-                >
-                  <h4 className="font-semibold text-slate-800">
-                    {plan.plan_name}
-                  </h4>
-                  <p className="text-xs text-slate-500 mt-1">
-                    {plan.description}
-                  </p>
-                  <p className="text-sm text-slate-700 mt-2">
-                    Price:{" "}
-                    <span className="font-semibold">₹{plan.price}</span>
-                  </p>
-
-                  <button
-                    type="button"
-                    onClick={() => handleBuyPlan(plan)}
-                    disabled={
-                      paymentLoading ||
-                      (currentPlan && currentPlan.id === plan.id)
-                    }
-                    className="mt-3 inline-flex items-center justify-center rounded-lg bg-green-600 text-white text-xs font-medium px-3 py-1.5 disabled:opacity-60 hover:bg-green-700 transition"
-                  >
-                    {paymentLoading
-                      ? "Processing..."
-                      : currentPlan && currentPlan.id === plan.id
-                      ? "Current Plan"
-                      : "Change Plan"}
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* STAT CARDS */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          <div className="bg-white p-5 rounded-xl shadow hover:shadow-lg transition">
-            <h3 className="text-slate-600">Total Students</h3>
-            <p className="text-3xl font-bold mt-2">{counts.students ?? 0}</p>
-          </div>
-
-          <div className="bg-white p-5 rounded-xl shadow hover:shadow-lg transition">
-            <h3 className="text-slate-600">Total Teachers</h3>
-            <p className="text-3xl font-bold mt-2">{counts.teachers ?? 0}</p>
-          </div>
-
-          <div className="bg-white p-5 rounded-xl shadow hover:shadow-lg transition">
-            <h3 className="text-slate-600">Total Staff</h3>
-            <p className="text-3xl font-bold mt-2">{counts.staff ?? 0}</p>
+            ))}
           </div>
         </div>
-
-        {/* CHART + TABLE PLACEHOLDER */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-6">
-          <div className="bg-white p-5 rounded-xl shadow">
-            <h3 className="text-lg font-semibold text-slate-700">
-              Recent Admissions
-            </h3>
-            <div className="h-40 flex items-center justify-center text-slate-500 text-sm">
-              (Chart Placeholder)
-            </div>
-          </div>
-
-          <div className="bg-white p-5 rounded-xl shadow">
-            <h3 className="text-lg font-semibold text-slate-700">
-              Latest Staff Added
-            </h3>
-            <div className="h-40 flex items-center justify-center text-slate-500 text-sm">
-              (Table Placeholder)
-            </div>
-          </div>
-        </div>
-      </div>
+      </main>
     </div>
   );
 }

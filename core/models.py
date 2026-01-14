@@ -48,7 +48,7 @@ class User(AbstractBaseUser,PermissionsMixin):
     username = models.CharField(max_length=255, unique=True, null=True, blank=True)
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=50, null=True, blank=True)
-    profile_picture = models.CharField(max_length=255, null=True, blank=True)
+    # profile_picture = models.CharField(max_length=255, null=True, blank=True)
     DOB = models.DateField(null=True, blank=True)
     gender = models.CharField(
         max_length=10,

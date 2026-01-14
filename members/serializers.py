@@ -8,6 +8,14 @@ from .models import User, TeacherProfile
 from django.conf import settings
 from django.core.mail import send_mail
 import os
+from rest_framework import serializers
+from .models import User, ParentProfile, ParentStudentRelation, StudentProfile
+from django.db import transaction
+from rest_framework import serializers
+from django.contrib.auth import get_user_model
+from .models import TeacherProfile
+
+User = get_user_model()
 
 
 class StudentProfileSerializer(serializers.ModelSerializer):
@@ -254,10 +262,7 @@ class TeacherSerializer(serializers.ModelSerializer):
 
 
 
-# core/serializer.py  (or a dedicated parents_serializers.py)
-from rest_framework import serializers
-from .models import User, ParentProfile, ParentStudentRelation, StudentProfile
-from django.db import transaction
+
 
 class ParentStudentRelationSerializer(serializers.ModelSerializer):
     # Read-only student details for list / view
@@ -293,7 +298,7 @@ class ParentSerializer(serializers.ModelSerializer):
     phone = serializers.CharField(
         source="user.phone", allow_blank=True, allow_null=True, required=False
     )
-
+    DOB =  serializers.DateField(source='user.DOB')
     # profile fields
     contact_number = serializers.CharField()
     whatsapp_number = serializers.CharField()
@@ -307,12 +312,14 @@ class ParentSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "fullname",
+            'DOB',
             "email",
             "phone",
             "contact_number",
             "whatsapp_number",
             "occupation",
             "relations",
+           
         ]
 
     def validate(self, attrs):
@@ -339,7 +346,9 @@ class ParentSerializer(serializers.ModelSerializer):
         email = user_data["email"]
         if User.objects.filter(email__iexact=email).exists():
             raise serializers.ValidationError({"email": "A user with this email already exists."})
-
+        date_of_birth = user_data.get('DOB')
+        if not date_of_birth:
+            raise serializers.ValidationError({'DOB':'date of birth cannot be empty'})
         # Create user
         user = User(
             email=email,
@@ -349,8 +358,27 @@ class ParentSerializer(serializers.ModelSerializer):
             status="active",
             tenant=tenant,
         )
-        user.set_unusable_password()
+        new_pass = date_of_birth.strftime('%d%m%Y')
+        user.set_password(new_pass)
         user.save()
+        try:
+            send_mail(
+                subject="Your Parent Account Credentials",
+                message=(
+                    f"Hi {user.fullname},\n\n"
+                    f"Your Parent account has been created.\n\n"
+                    f"Login details:\n"
+                    f"Email: {user.email}\n"
+                    f"Password: {new_pass} (your date of birth in DDMMYYYY format)\n\n"
+                    f"Please log in and change your password immediately."
+                ),
+                from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
+                recipient_list=[user.email],
+                fail_silently=True,  # avoid breaking create if email config is wrong
+            )
+        except Exception:
+            # don't block creation if email fails
+            pass
 
         # Parent profile
         parent = ParentProfile.objects.create(user=user, **validated_data)
@@ -407,3 +435,68 @@ class ParentSerializer(serializers.ModelSerializer):
                 relation_type=rel.get("relation_type", "other"),
                 is_primary=bool(rel.get("is_primary", False)),
             )
+
+
+# =================================================Teacher Profile ===================================
+
+
+
+class TeacherProfileSerializer(serializers.ModelSerializer):
+    # Flattened user fields allowed for teacher to edit
+    fullname = serializers.CharField(source="user.fullname", required=True)
+    email = serializers.EmailField(source="user.email", required=True)
+    phone = serializers.CharField(source="user.phone", allow_blank=True, required=False)
+    DOB = serializers.DateField(source="user.DOB", allow_null=True, required=False,)
+    gender = serializers.CharField(source="user.gender", allow_blank=True, required=False)
+
+    class Meta:
+        model = TeacherProfile
+        fields = [
+            "id",
+            # user fields (flattened)
+            "fullname",
+            "email",
+            "phone",
+            "DOB",
+            "gender",
+            # teacher profile fields
+            "department_id",
+            "employee_id",
+            "joining_date",
+            "qualification",
+            "salary",
+            "specialization",
+            "years_of_experience",
+            "id_proof_url",
+        ]
+        read_only_fields = ["employee_id", "joining_date"]  # optionally lock fields you don't want teacher changing
+
+    def validate_email(self, value):
+        # ensure email uniqueness if changed
+        request = self.context.get("request")
+        user = request.user
+        if User.objects.filter(email__iexact=value).exclude(pk=user.pk).exists():
+            raise serializers.ValidationError("A user with this email already exists.")
+        return value
+
+    def update(self, instance, validated_data):
+        """
+        validated_data contains nested 'user' dict for user fields and remaining keys for profile.
+        Update both user and teacher profile atomically.
+        """
+        user_data = validated_data.pop("user", {})
+        user = instance.user
+
+        # update user fields
+        allowed_user_fields = {"fullname", "email", "phone", "DOB", "gender"}
+        for k, v in user_data.items():
+            if k in allowed_user_fields:
+                setattr(user, k, v)
+        user.save()
+
+        # update profile fields
+        for attr, val in validated_data.items():
+            setattr(instance, attr, val)
+        instance.save()
+
+        return instance

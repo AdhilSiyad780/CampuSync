@@ -1,6 +1,8 @@
 // frontend/src/App.jsx
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
+import LandingPage from "./pages/LandingPage.jsx";
+
 // ---------- SCHOOL / ADMIN PAGES ----------
 import AdminSignupEmailStep from "./pages/school/AdminSignupEmailStep";
 import AdminSignupComplete from "./pages/school/AdminSignupComplete";
@@ -9,7 +11,7 @@ import AdminDashboard from "./pages/school/AdminDashboard";
 import StudentsPage from "./pages/school/StudentsPage"; // <-- make sure this exists
 import TeachersPage from "./pages/school/TeacherPage";
 import ParentsPage from "./pages/school/ParentPage";
-
+import AdminProfile from './pages/school/AdminProfile.jsx'
 // ---------- SUPERADMIN PAGES ----------
 import LoginPage from "./pages/SuperAdminLogin";
 import Layout from "./componets/Layout";
@@ -21,21 +23,31 @@ import SuperAdminTenants  from "./pages/SuperAdminTenants.jsx";
 // ---------- STUDENT PAGES ----------
 import StudentLoginPage from "./pages/students/StudentLogin.jsx";
 import StudentDashboard from "./pages/students/StudentDashboard.jsx";
+import StudentProfile from "./pages/students/StudentProfile.jsx";
 //.............TEACHER PAGEs...............
 import TeacherLogin from "./pages/teacher/TeacherLogin.jsx";
 import TeacherDashboard from './pages/teacher/TeacherDashboard.jsx'
+import TeacherProfile from "./pages/teacher/TeacherProfile.jsx";
+
+
+//============Parent Login==============================
+import ParentLogin from "./pages/parents/ParentLogin.jsx";
+import ParentDashboard from './pages/parents/ParentDashboard.jsx'
+import ParentProfile from "./pages/parents/ParentProfile.jsx";
 
 export default function App() {
   return (
     <Router>
       <Routes>
+         <Route path="/" element={<LandingPage  />} />
         {/* ===================== PUBLIC SCHOOL / ADMIN AUTH ROUTES ===================== */}
-        <Route path="/" element={<AdminSignupEmailStep />} />
+        <Route path="/signup" element={<AdminSignupEmailStep />} />
         <Route path="/login" element={<AdminLoginPage />} />
         <Route path="/signup/complete" element={<AdminSignupComplete />} />
 
         {/* ===================== SCHOOL / ADMIN APP ROUTES ===================== */}
         {/* (You can wrap these with an AdminProtectedRoute later if you want) */}
+        <Route path="/profile" element={ <AdminProfile/>}/>
         <Route path="/dashboard" element={<AdminDashboard />} />
         <Route path="/students" element={<StudentsPage />} />
         <Route path="/teachers"  element={<TeachersPage/>}/>
@@ -47,14 +59,22 @@ export default function App() {
         {/* ===================== STUDENT AUTH ROUTE ===================== */}
         <Route path="/student/login" element={<StudentLoginPage />} />
          <Route path="/student/Dashboard" element={<StudentDashboard />} />
-        {/* ===================== STUDENT AUTH ROUTE ===================== */}
+          <Route path="/student/profile" element={<StudentProfile />} />
+
+        {/* ===================== TEACHER AUTH ROUTE ===================== */}
         <Route path="/teacher/login" element={<TeacherLogin />} />
          <Route path="/teacher/Dashboard" element={<TeacherDashboard />} /> 
+          <Route path="/teacher/profile" element={<TeacherProfile />} /> 
+         {/* ===================== PARENT AUTH ROUTE ===================== */}
+        <Route path="/parent/login" element={<ParentLogin />} />
+        <Route path="/parent/dashboard" element={<  ParentDashboard />} />
+        <Route path="/parent/profile" element={<  ParentProfile />} />
 
         {/* ===================== PROTECTED SUPERADMIN AREA ===================== */}
         <Route
           path="/superadmin"
           element={
+
             <ProtectedRoute>
               <Layout />
             </ProtectedRoute>

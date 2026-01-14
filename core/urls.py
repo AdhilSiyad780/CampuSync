@@ -2,7 +2,8 @@ from django.urls import path
 from .views import (SuperAdminLoginView,SuperAdminProfileView,
                     AdminSignupSendOTPView,AdminVerifyOTPView,AdminSignupView,
                     GoogleAuthView,AdminLoginView,
-                    TenantListForSuperadminView,StudentLoginView,TeacherLoginView)
+                    TenantListForSuperadminView,StudentLoginView,TeacherLoginView,
+                    ParentLoginView)
 
 
 urlpatterns = [
@@ -17,7 +18,11 @@ urlpatterns = [
     path('superadmin/tenants/',TenantListForSuperadminView.as_view(),name='superadmin-tenants-list'),
 
     path('student/login/',StudentLoginView.as_view(),name='student_login'),
+
     path("teacher/login/", TeacherLoginView.as_view(), name="teacher_login"),
+
+    path("parent/login/", ParentLoginView.as_view(), name="parent_login"),
+    
 
    
     

@@ -1,11 +1,16 @@
+from datetime import timedelta
+import uuid
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+
+from subscription.models import Subscription, SubscriptionPlan
 from .serializer import( SuperAdminLoginSerializer,AdminVerifyOTPSerializer,
                         AdminSignupCompleteLoginflow,SuperAdminProfileSerializer,
                         SuperAdminProfileUpdateSerializer,AdminSignupSendOTPSerializer,
                         AdminSignupComlpeteSignupflow,AdminLoginSerializer,
-                        TenantWithPlanSerializer,StudentLoginSerializers,TeacherLoginSerializers)
+                        TenantWithPlanSerializer,StudentLoginSerializers,TeacherLoginSerializers,
+                        ParentLoginSerializer)
 
 from rest_framework.permissions import AllowAny
 from rest_framework.permissions import IsAuthenticated
@@ -79,14 +84,14 @@ class AdminSignupView(APIView):
 
     def post(self, request):
         # OTP-driven path (frontend sends signup_token)
-        if request.data.get("signup_token"):
-            serializer = AdminSignupComlpeteSignupflow(data=request.data, context={"request": request})
-            serializer.is_valid(raise_exception=True)
-            user = serializer.save()
-            refresh = RefreshToken.for_user(user)
-            access = refresh.access_token
-            tenant = user.tenant
-            data = {
+       
+        serializer = AdminSignupComlpeteSignupflow(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        refresh = RefreshToken.for_user(user)
+        access = refresh.access_token
+        tenant = user.tenant
+        data = {
                 "refresh": str(refresh),
                 "access": str(access),
                 "user": {
@@ -106,40 +111,9 @@ class AdminSignupView(APIView):
                     "status": tenant.status,
                 } if tenant else None,
             }
-            return Response(data, status=status.HTTP_200_OK)
-
-        # Authenticated path (login/google -> complete)
-        # This path MUST be authenticated; reject anonymous requests explicitly
-        if not request.user or not getattr(request.user, "is_authenticated", False):
-            return Response({"detail": "Authentication required to complete signup."}, status=status.HTTP_401_UNAUTHORIZED)
-
-        serializer = AdminSignupCompleteLoginflow(data=request.data, context={"request": request})
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-        refresh = RefreshToken.for_user(user)
-        access = refresh.access_token
-        tenant = user.tenant
-        data = {
-            "refresh": str(refresh),
-            "access": str(access),
-            "user": {
-                "id": user.id,
-                "email": user.email,
-                "fullname": user.fullname,
-                "user_type": user.user_type,
-                "is_setup_complete": user.is_setup_complete,
-            },
-            "tenant": {
-                "id": tenant.id,
-                "tenant_id": tenant.tenant_id,
-                "instance_name": tenant.instance_name,
-                "email": tenant.email,
-                "phone": tenant.phone,
-                "address": tenant.address,
-                "status": tenant.status,
-            } if tenant else None,
-        }
         return Response(data, status=status.HTTP_200_OK)
+
+        
 
 class AdminVerifyOTPView(APIView):
     permission_classes = [AllowAny]
@@ -240,7 +214,47 @@ class GoogleAuthView(APIView):
 
         # If created and you want to auto-create a Tenant, you can do it here.
         # For now, we won't, to avoid over-complicating:
-        tenant = user.tenant
+        tenant = Tenant.objects.create(
+            tenant_id=str(uuid.uuid4()),
+            instance_name="",
+            email=email,
+            phone="",
+            address="",
+            status="trial",
+        )
+
+        # 3️⃣ Attach trial subscription
+        trial_plan = SubscriptionPlan.objects.filter(
+            plan_name__iexact="Trial", is_active=True
+        ).first()
+
+        if not trial_plan:
+            trial_plan = SubscriptionPlan.objects.create(
+                plan_name="Trial",
+                description="Default trial plan",
+                duration_days=7,
+                price=0,
+                max_students=None,
+                max_teachers=None,
+                max_admins=1,
+                features=["Basic features"],
+                is_active=True,
+            )
+
+        now = timezone.now()
+        Subscription.objects.create(
+            tenant=tenant,
+            plan=trial_plan,
+            start_date=now,
+            expiry_date=now + timedelta(days=trial_plan.duration_days),
+            status="trial",
+            is_active=True,
+        )
+
+        # 4️⃣ Link user ↔ tenant
+        user.tenant = tenant
+        user.is_setup_complete = False
+        user.save(update_fields=["tenant", "is_setup_complete"])
 
         # Issue JWT
         refresh = RefreshToken.for_user(user)
@@ -372,3 +386,38 @@ class TenantListForSuperadminView(generics.ListAPIView):
     serializer_class = TenantWithPlanSerializer
     permission_classes = [IsAuthenticated, IsSuperAdminOrAdmin]  # tighten if needed
 
+
+class ParentLoginView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = ParentLoginSerializer(data=request.data, context={"request": request})
+        # IMPORTANT: correct method name -> raise_exception (not raise_exeption)
+        serializer.is_valid(raise_exception=True)
+
+        user = serializer.validated_data["user"]
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+        refresh_token = str(refresh)
+
+        # Optionally include a small profile payload for frontend convenience
+        parent_profile = getattr(user, "parentprofile", None)
+        profile_data = None
+        if parent_profile:
+            profile_data = {
+                "id": parent_profile.id,
+                "contact_number": getattr(parent_profile, "contact_number", None),
+            }
+
+        data = {
+            "access": access_token,
+            "refresh": refresh_token,
+            "user": {
+                "id": user.id,
+                "fullname": getattr(user, "fullname", ""),
+                "email": user.email,
+                "user_type": user.user_type,
+            },
+            "profile": profile_data,
+        }
+        return Response(data, status=status.HTTP_200_OK)

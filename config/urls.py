@@ -8,7 +8,8 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('api/', include('core.urls')),
     path('api/subscriptions/', include('subscription.urls')),
-    path('api/',include('members.urls'))
+    path('api/',include('members.urls')),
+    path('api/',include('profiles.urls'))
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
