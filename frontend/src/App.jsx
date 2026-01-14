@@ -12,6 +12,8 @@ import StudentsPage from "./pages/school/StudentsPage"; // <-- make sure this ex
 import TeachersPage from "./pages/school/TeacherPage";
 import ParentsPage from "./pages/school/ParentPage";
 import AdminProfile from './pages/school/AdminProfile.jsx'
+import ClassesPage from "./pages/school/ClassesPage.jsx";
+import AnnouncementsPage from "./pages/school/AnnouncementsPage.jsx";
 // ---------- SUPERADMIN PAGES ----------
 import LoginPage from "./pages/SuperAdminLogin";
 import Layout from "./componets/Layout";
@@ -52,6 +54,10 @@ export default function App() {
         <Route path="/students" element={<StudentsPage />} />
         <Route path="/teachers"  element={<TeachersPage/>}/>
         <Route path="/parents"  element={<ParentsPage/>}/>
+        <Route path="/classes"  element={<ClassesPage/>}/>
+        <Route path="/announcements"  element={<AnnouncementsPage/>}/>
+
+
 
         {/* ===================== SUPERADMIN AUTH ROUTE ===================== */}
         <Route path="/superadmin/login" element={<LoginPage />} />

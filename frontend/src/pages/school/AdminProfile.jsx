@@ -48,6 +48,7 @@ export default function AdminProfile() {
       setLoading(false);
     }
   };
+  
 
   const handleAdminChange = (e) => {
     setAdmin({ ...admin, [e.target.name]: e.target.value });

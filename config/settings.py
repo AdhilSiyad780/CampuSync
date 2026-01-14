@@ -39,6 +39,8 @@ INSTALLED_APPS = [
     "core",
     "subscription",
     'members',
+    'class_announcement_attendence',
+    
 ]
 
 MIDDLEWARE = [
