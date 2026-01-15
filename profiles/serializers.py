@@ -1,8 +1,13 @@
 
+from config import settings
 from core.models import User,Tenant
 
 from rest_framework import serializers
 from members.models import StudentProfile,ParentProfile,ParentStudentRelation
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
+from django.core.mail import send_mail
 
 
 class AdminProfileSerializers(serializers.ModelSerializer):
@@ -118,3 +123,91 @@ class ParentProfileSerializers(serializers.ModelSerializer):
         profile.save()
     
         return instance
+    
+
+
+
+
+class ForgotPasswordSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    def validate_email(self,value):
+        try:
+            user = User.objects.get(email__iexact=value)
+        except User.DoesNotExist:
+            pass 
+        return value.lower()
+    def save(self):
+        email = self.validated_data['email']
+        try:
+            user = User.objects.get(email__iexact=email)
+            token = default_token_generator.make_token(user)
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            reset_link = f"{settings.FRONTEND_URL}/reset-password/{uid}/{token}"
+            subject = "Password Reset Request - CampuSync"
+            message = f"""
+                      Hello {user.fullname},
+
+                     You requested to reset your password for your CampuSync account.
+
+                     Click the link below to reset your password:
+                     {reset_link}
+
+                     This link will expire in 24 hours.
+
+                     If you didn't request this, please ignore this email.
+
+                     Best regards,
+                     CampuSync Team
+                                 """
+            
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                fail_silently=False,
+            )
+            return True
+        except User.DoesNotExist:
+            return True
+        except Exception as e:
+            print(f"Error sending password reset email: {e}")
+            return False
+        
+
+
+class ResetPasswordSerializer(serializers.Serializer):
+    uid = serializers.CharField()
+    token = serializers.CharField()
+    new_password = serializers.CharField(min_length=8,write_only=True)
+    confirm_password = serializers.CharField(min_length=8,write_only=True)
+
+    def validate(self, attrs):
+        if attrs['new_password']!=attrs['confirm_password']:
+            raise serializers.ValidationError({
+                'confirm_password':'password do not match   '
+            })
+        try:
+            uid = force_str(urlsafe_base64_decode(attrs['uid']))
+            user = User.objects.get(pk=uid)
+        except(TypeError,ValueError,OverflowError,User.DoesNotExist):
+            raise serializers.ValidationError({
+                'token':'invalid reset Link'
+            })
+        if not default_token_generator.check_token(user, attrs['token']):
+            raise serializers.ValidationError({
+                "token": "Reset link has expired or is invalid"
+            })
+        
+        attrs['user'] = user
+        return attrs
+    def save(self):
+        user = self.validated_data['user']
+        user.set_password(self.validated_data['new_password'])
+        user.save()
+        return user  
+
+
+    
+
+            

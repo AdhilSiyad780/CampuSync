@@ -37,6 +37,12 @@ import ParentLogin from "./pages/parents/ParentLogin.jsx";
 import ParentDashboard from './pages/parents/ParentDashboard.jsx'
 import ParentProfile from "./pages/parents/ParentProfile.jsx";
 
+
+//============FORGOT PASSWORD ==============================
+import ForgotPasswordPage from "./pages/forgotpassword/ForgotPasswordPage.jsx";
+import ResetPasswordPage from "./pages/forgotpassword/ResetPasswordPage.jsx";
+
+
 export default function App() {
   return (
     <Router>
@@ -75,6 +81,9 @@ export default function App() {
         <Route path="/parent/login" element={<ParentLogin />} />
         <Route path="/parent/dashboard" element={<  ParentDashboard />} />
         <Route path="/parent/profile" element={<  ParentProfile />} />
+        {/* //============FORGOT PASSWORD ============================== */}
+        <Route path="/forgotpassword" element={<  ForgotPasswordPage />} />
+        <Route path="/reset-password/:uid/:token" element={<ResetPasswordPage />} />
 
         {/* ===================== PROTECTED SUPERADMIN AREA ===================== */}
         <Route

@@ -1,7 +1,10 @@
-// frontend/src/pages/school/AdminSignupEmailStep.jsx
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
+import { 
+  Mail, Lock, ShieldCheck, ArrowRight, 
+  ChevronRight, RefreshCw, AlertCircle, CheckCircle2 
+} from "lucide-react";
 import api from "../../api/axios";
 
 function AdminSignupEmailStep() {
@@ -15,40 +18,15 @@ function AdminSignupEmailStep() {
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
-  // OTP timer
-  const [otpExpiresIn, setOtpExpiresIn] = useState(null); // seconds from backend
-  const [timeLeft, setTimeLeft] = useState(0);            // seconds counting down
+  const [otpExpiresIn, setOtpExpiresIn] = useState(null);
+  const [timeLeft, setTimeLeft] = useState(0);
 
   const navigate = useNavigate();
 
   // STEP 1: EMAIL + PASSWORD -> SEND OTP
   const handleSendOtp = async (e) => {
     e.preventDefault();
-    setErrorMsg("");
-    setSuccessMsg("");
-
-    const trimmedEmail = email.trim();
-
-    if (!trimmedEmail) {
-      setErrorMsg("Email is required.");
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(trimmedEmail)) {
-      setErrorMsg("Enter a valid email.");
-      return;
-    }
-
-    if (!password.trim()) {
-      setErrorMsg("Password is required.");
-      return;
-    }
-
-    if (password.length < 6) {
-      setErrorMsg("Password must be at least 6 characters.");
-      return;
-    }
+    setErrorMsg(""); setSuccessMsg("");
 
     if (password !== confirmPassword) {
       setErrorMsg("Passwords do not match.");
@@ -57,358 +35,189 @@ function AdminSignupEmailStep() {
 
     try {
       setLoading(true);
-
-      const res = await api.post("/signup/send-otp/", {
-        email: trimmedEmail,
-      });
-
+      const res = await api.post("/signup/send-otp/", { email: email.trim() });
       setIsOtpSent(true);
-      setSuccessMsg(
-        "OTP has been sent to your email (valid for a few minutes)."
-      );
-
-      // backend should optionally send { expires_in: seconds }
-      const expires = res.data?.expires_in ?? 300; // default 5 minutes
-      setOtpExpiresIn(expires);
-      setTimeLeft(expires);
-    } catch (err) {
-      console.error(err);
-      if (err.response?.data?.email) {
-        setErrorMsg(err.response.data.email[0]);
-      } else if (err.response?.data?.detail) {
-        setErrorMsg(err.response.data.detail);
-      } else {
-        setErrorMsg("Something went wrong. Please try again.");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // STEP 2: EMAIL + OTP -> VERIFY OTP -> GO TO REGISTRATION PAGE
-  const handleVerifyOtp = async (e) => {
-    e.preventDefault();
-    setErrorMsg("");
-    setSuccessMsg("");
-
-    const trimmedEmail = email.trim();
-    const trimmedOtp = otp.trim();
-
-    if (!trimmedEmail || !trimmedOtp) {
-      setErrorMsg("Email and OTP are required.");
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      const res = await api.post("/signup/verify-otp/", {
-        email: trimmedEmail,
-        password: password,
-        confirm_password: confirmPassword,
-        otp: trimmedOtp,
-      });
-
-   
-
-      setSuccessMsg("OTP verified successfully.");
-      localStorage.setItem("access", res.data.access);
-      localStorage.setItem("refresh", res.data.refresh);
-
-      // Go to registration (complete) page
-      navigate("/signup/complete", {
-        state: {
-          email: trimmedEmail,
-          fromGoogle: false,
-        },
-      });
-    } catch (err) {
-      console.error(err);
-      if (err.response?.data?.non_field_errors) {
-        setErrorMsg(err.response.data.non_field_errors[0]);
-      } else if (typeof err.response?.data === "string") {
-        setErrorMsg(err.response.data);
-      } else {
-        const data = err.response?.data;
-        const firstKey = data && Object.keys(data)[0];
-        if (firstKey && Array.isArray(data[firstKey])) {
-          setErrorMsg(data[firstKey][0]);
-        } else {
-          setErrorMsg("OTP verification failed. Check email/OTP.");
-        }
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // GOOGLE HANDLERS
-  const handleGoogleSuccess = async (credentialResponse) => {
-    setErrorMsg("");
-    setSuccessMsg("");
-    try {
-      setLoading(true);
-
-      const res = await api.post("/auth/google-login/", {
-        credential: credentialResponse.credential,
-      });
-
-      // store JWTs
-      localStorage.setItem("access", res.data.access);
-      localStorage.setItem("refresh", res.data.refresh);
-
-      const user = res.data.user || {};
-      const emailFromGoogle = user.email || "";
-      const fullnameFromGoogle = user.fullname || "";
-
-      // Go to registration page (no password needed for Google)
-      navigate("/signup/complete", {
-        state: {
-          fromGoogle: true,
-          email: emailFromGoogle,
-          fullname: fullnameFromGoogle,
-        },
-      });
-    } catch (err) {
-      console.error(err);
-      console.log("GOOGLE LOGIN ERROR DATA:", err.response?.data);
-      setErrorMsg(
-        err.response?.data?.detail || "Google login failed. Please try again."
-      );
-      
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGoogleError = () => {
-    setErrorMsg("Google login was cancelled or failed.");
-  };
-
-  // COUNTDOWN EFFECT
-  useEffect(() => {
-    if (!isOtpSent || otpExpiresIn == null) return;
-
-    setTimeLeft(otpExpiresIn);
-
-    const interval = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [isOtpSent, otpExpiresIn]);
-
-  // RESEND OTP
-  const handleResendOtp = async () => {
-    setErrorMsg("");
-    setSuccessMsg("");
-
-    const trimmedEmail = email.trim();
-    if (!trimmedEmail) {
-      setErrorMsg("Email is missing.");
-      return;
-    }
-
-    try {
-      setLoading(true);
-      const res = await api.post("/signup/send-otp/", {
-        email: trimmedEmail,
-      });
-
-      setSuccessMsg("A new OTP has been sent to your email.");
+      setSuccessMsg("Verification code sent to your email.");
       const expires = res.data?.expires_in ?? 300;
       setOtpExpiresIn(expires);
       setTimeLeft(expires);
     } catch (err) {
-      console.error(err);
-      if (err.response?.data?.email) {
-        setErrorMsg(err.response.data.email[0]);
-      } else if (err.response?.data?.detail) {
-        setErrorMsg(err.response.data.detail);
-      } else {
-        setErrorMsg("Could not resend OTP. Please try again.");
-      }
+      setErrorMsg(err.response?.data?.email?.[0] || err.response?.data?.detail || "Something went wrong.");
     } finally {
       setLoading(false);
     }
   };
 
-  const isSubmitting = loading;
+  // STEP 2: VERIFY OTP
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    setErrorMsg(""); setSuccessMsg("");
 
-  // helper: format seconds to mm:ss
+    try {
+      setLoading(true);
+      const res = await api.post("/signup/verify-otp/", {
+        email: email.trim(),
+        password: password,
+        confirm_password: confirmPassword,
+        otp: otp.trim(),
+      });
+
+      localStorage.setItem("access", res.data.access);
+      localStorage.setItem("refresh", res.data.refresh);
+      navigate("/signup/complete", { state: { email: email.trim(), fromGoogle: false } });
+    } catch (err) {
+      setErrorMsg("Invalid or expired OTP. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // GOOGLE HANDLER
+  const handleGoogleSuccess = async (credentialResponse) => {
+    try {
+      setLoading(true);
+      const res = await api.post("/auth/google-login/", { credential: credentialResponse.credential });
+      localStorage.setItem("access", res.data.access);
+      localStorage.setItem("refresh", res.data.refresh);
+      navigate("/signup/complete", { 
+        state: { fromGoogle: true, email: res.data.user.email, fullname: res.data.user.fullname } 
+      });
+    } catch (err) {
+      setErrorMsg("Google authentication failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // COUNTDOWN EFFECT
+  useEffect(() => {
+    if (!isOtpSent || timeLeft <= 0) return;
+    const interval = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
+    return () => clearInterval(interval);
+  }, [isOtpSent, timeLeft]);
+
   const formatTime = (seconds) => {
-    const m = Math.floor(seconds / 60)
-      .toString()
-      .padStart(2, "0");
+    const m = Math.floor(seconds / 60).toString().padStart(2, "0");
     const s = (seconds % 60).toString().padStart(2, "0");
     return `${m}:${s}`;
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100">
-      <div className="w-full max-w-md bg-white shadow-md rounded-xl p-6 sm:p-8">
-        <h2 className="text-2xl font-semibold text-center text-slate-800 mb-2">
-          Admin Signup
-        </h2>
-        <p className="text-sm text-slate-500 text-center mb-6">
-          Create your account with email + password or use Google. For email,
-          verify with OTP before completing registration.
-        </p>
+    <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC] p-4">
+      <div className="w-full max-w-md bg-white shadow-2xl shadow-slate-200 rounded-[2.5rem] overflow-hidden border border-slate-100">
+        
+        {/* TOP BANNER */}
+        <div className="bg-blue-600 p-8 text-white">
+          <h2 className="text-2xl font-black tracking-tight">Create Admin Account</h2>
+          <p className="text-blue-100 text-xs font-bold mt-2 flex items-center gap-2 uppercase tracking-widest">
+            Step 01 <ChevronRight size={14} /> Email Verification
+          </p>
+        </div>
 
-        <form
-          onSubmit={isOtpSent ? handleVerifyOtp : handleSendOtp}
-          className="space-y-4"
-        >
-          {/* Email */}
-          <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-slate-700 mb-1"
-            >
-              Admin Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              placeholder="admin@school.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-              disabled={isOtpSent}
-            />
-          </div>
-
-          {/* Password */}
-          <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-slate-700 mb-1"
-            >
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              placeholder="Create password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-              disabled={isOtpSent}
-            />
-          </div>
-
-          {/* Confirm Password */}
-          <div>
-            <label
-              htmlFor="confirm_password"
-              className="block text-sm font-medium text-slate-700 mb-1"
-            >
-              Confirm Password
-            </label>
-            <input
-              id="confirm_password"
-              type="password"
-              placeholder="Confirm password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-              disabled={isOtpSent}
-            />
-          </div>
-
-          {/* OTP input appears only after OTP is sent */}
-          {isOtpSent && (
-            <div>
-              <label
-                htmlFor="otp"
-                className="block text-sm font-medium text-slate-700 mb-1"
-              >
-                OTP
-              </label>
-              <input
-                id="otp"
-                type="text"
-                placeholder="Enter OTP"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-              />
-
-              {/* Timer + Resend section */}
-              <div className="flex items-center justify-between mt-2 text-xs">
-                <span className="text-slate-500">
-                  {timeLeft > 0
-                    ? `OTP expires in ${formatTime(timeLeft)}`
-                    : "OTP expired."}
-                </span>
-
-                <button
-                  type="button"
-                  onClick={handleResendOtp}
-                  disabled={timeLeft > 0 || loading}
-                  className={`text-blue-600 font-medium hover:underline disabled:opacity-50 disabled:cursor-not-allowed`}
-                >
-                  Resend OTP
-                </button>
+        <div className="p-8">
+          <form onSubmit={isOtpSent ? handleVerifyOtp : handleSendOtp} className="space-y-5">
+            
+            {/* EMAIL INPUT */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Admin Email</label>
+              <div className="relative flex items-center">
+                <Mail className="absolute left-4 text-slate-300" size={18} />
+                <input
+                  disabled={isOtpSent}
+                  type="email"
+                  placeholder="admin@school.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold text-slate-700 focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                />
               </div>
             </div>
-          )}
 
-          {errorMsg && (
-            <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-md px-3 py-2">
-              {errorMsg}
-            </p>
-          )}
+            {/* PASSWORD INPUTS (Hidden if OTP is sent to focus on OTP) */}
+            {!isOtpSent && (
+              <>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Password</label>
+                  <div className="relative flex items-center">
+                    <Lock className="absolute left-4 text-slate-300" size={18} />
+                    <input
+                      type="password"
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold text-slate-700 focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                    />
+                  </div>
+                </div>
 
-          {successMsg && (
-            <p className="text-sm text-green-600 bg-green-50 border border-green-100 rounded-md px-3 py-2">
-              {successMsg}
-            </p>
-          )}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Confirm Password</label>
+                  <div className="relative flex items-center">
+                    <Lock className="absolute left-4 text-slate-300" size={18} />
+                    <input
+                      type="password"
+                      placeholder="••••••••"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold text-slate-700 focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full inline-flex items-center justify-center rounded-lg bg-blue-600 text-white text-sm font-medium py-2.5 mt-2 disabled:opacity-70 disabled:cursor-not-allowed hover:bg-blue-700 transition"
-          >
-            {isSubmitting
-              ? isOtpSent
-                ? "Verifying OTP..."
-                : "Sending OTP..."
-              : isOtpSent
-              ? "Verify OTP"
-              : "Send OTP"}
-          </button>
-        </form>
+            {/* OTP INPUT */}
+            {isOtpSent && (
+              <div className="space-y-2 animate-in slide-in-from-top-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Verification Code</label>
+                <div className="relative flex items-center">
+                  <ShieldCheck className="absolute left-4 text-blue-500" size={18} />
+                  <input
+                    type="text"
+                    placeholder="Enter 6-digit OTP"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    className="w-full bg-blue-50/50 border border-blue-100 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-black text-blue-600 tracking-[0.5em] outline-none"
+                  />
+                </div>
+                <div className="flex justify-between items-center px-1">
+                  <span className={`text-[10px] font-bold ${timeLeft > 0 ? 'text-slate-400' : 'text-red-500'}`}>
+                    {timeLeft > 0 ? `Expires in ${formatTime(timeLeft)}` : "Code expired"}
+                  </span>
+                  <button type="button" onClick={handleSendOtp} className="text-[10px] font-black text-blue-600 uppercase hover:underline flex items-center gap-1">
+                    <RefreshCw size={10} /> Resend
+                  </button>
+                </div>
+              </div>
+            )}
 
-        {/* Divider */}
-        <div className="flex items-center gap-3 my-6">
-          <div className="flex-1 h-px bg-slate-200" />
-          <span className="text-xs text-slate-400 uppercase tracking-wide">
-            Or
-          </span>
-          <div className="flex-1 h-px bg-slate-200" />
-        </div>
+            {errorMsg && <p className="flex items-center gap-2 p-3 bg-red-50 text-red-600 text-[11px] font-bold rounded-xl border border-red-100"><AlertCircle size={14}/> {errorMsg}</p>}
+            {successMsg && <p className="flex items-center gap-2 p-3 bg-emerald-50 text-emerald-700 text-[11px] font-bold rounded-xl border border-emerald-100"><CheckCircle2 size={14}/> {successMsg}</p>}
 
-        {/* Google Login */}
-        <div className="flex justify-center">
-          <GoogleLogin
-            onSuccess={handleGoogleSuccess}
-            onError={handleGoogleError}
-          />
-        </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-sm shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+            >
+              {loading ? "Processing..." : isOtpSent ? "Verify & Continue" : "Send Verification Code"}
+              {!loading && <ArrowRight size={18} />}
+            </button>
+          </form>
 
-        <div className="mt-4 text-center text-xs text-slate-500">
-          <span>Already have an account? </span>
-          <Link to="/login" className="text-blue-600 hover:underline font-medium">
-            Login
-          </Link>
+          {/* GOOGLE DIVIDER */}
+          <div className="flex items-center gap-4 my-8">
+            <div className="flex-1 h-px bg-slate-100" />
+            <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Social Signup</span>
+            <div className="flex-1 h-px bg-slate-100" />
+          </div>
+
+          <div className="flex justify-center">
+            <GoogleLogin onSuccess={handleGoogleSuccess} onError={() => setErrorMsg("Google Signup Failed")} />
+          </div>
+
+          <p className="mt-8 text-center text-xs font-bold text-slate-400">
+            Already have an account? <Link to="/login" className="text-blue-600 hover:underline">Login here</Link>
+          </p>
         </div>
       </div>
     </div>

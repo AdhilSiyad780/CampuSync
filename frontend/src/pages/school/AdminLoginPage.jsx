@@ -1,227 +1,167 @@
-// frontend/src/pages/school/AdminLoginPage.jsx
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
+import { 
+  Mail, Lock, LogIn, ChevronRight, 
+  AlertCircle, ShieldCheck, ArrowRight 
+} from "lucide-react";
 import api from "../../api/axios";
 
 function AdminLoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const [successMsg, setSuccessMsg] = useState("");
 
   const navigate = useNavigate();
 
   // ---------------- GOOGLE LOGIN ----------------
   const handleGoogleSuccess = async (credentialResponse) => {
     setErrorMsg("");
-    setSuccessMsg("");
     try {
       setLoading(true);
-
       const res = await api.post("/auth/google-login/", {
         credential: credentialResponse.credential,
       });
 
-      // store JWTs
       localStorage.setItem("access", res.data.access);
       localStorage.setItem("refresh", res.data.refresh);
 
       const user = res.data.user || {};
-      const emailFromGoogle = user.email || "";
-      const fullnameFromGoogle = user.fullname || "";
       const needsSetup = res.data.needs_setup ?? !user.is_setup_complete;
 
       if (needsSetup) {
-        // new / incomplete Google user -> go to registration page
         navigate("/signup/complete", {
-          state: {
-            fromGoogle: true,
-            email: emailFromGoogle,
-            fullname: fullnameFromGoogle,
-          },
+          state: { fromGoogle: true, email: user.email, fullname: user.fullname },
         });
       } else {
-        // existing fully-setup user -> go straight to dashboard
         navigate("/dashboard");
       }
     } catch (err) {
-      console.error(err);
-      console.log("GOOGLE LOGIN ERROR DATA:", err.response?.data);
-      setErrorMsg(
-        err.response?.data?.detail || "Google login failed. Please try again."
-      );
+      setErrorMsg("Google authentication failed. Please try again.");
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleGoogleError = () => {
-    setErrorMsg("Google login was cancelled or failed.");
   };
 
   // ---------------- EMAIL + PASSWORD LOGIN ----------------
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg("");
-    setSuccessMsg("");
 
-    const trimmedEmail = email.trim();
-
-    if (!trimmedEmail || !password) {
-      setErrorMsg("Email and password are required.");
+    if (!email.trim() || !password) {
+      setErrorMsg("Please enter both email and password.");
       return;
     }
 
     try {
       setLoading(true);
+      const res = await api.post("/login/", { email: email.trim(), password });
 
-      const res = await api.post("/login/", {
-        email: trimmedEmail,
-        password,
-      });
-
-      // store tokens + basic user state
       localStorage.setItem("access", res.data.access);
       localStorage.setItem("refresh", res.data.refresh);
-      console.log(res.data.access,'==========================================')
-      localStorage.setItem(
-        "is_setup_complete",
-        String(res.data.user.is_setup_complete)
-      );
-
-      // optional: store user/tenant in localStorage or Redux
-      localStorage.setItem("admin_email", res.data.user.email);
+      localStorage.setItem("is_setup_complete", String(res.data.user.is_setup_complete));
       localStorage.setItem("admin_fullname", res.data.user.fullname);
 
       if (res.data.needs_setup) {
-        // user exists but hasn't finished setup
         navigate("/signup/complete", {
-          state: {
-            fromGoogle: false,
-            fromLogin: true,
-            email: res.data.user.email,
-            fullname: res.data.user.fullname,
-          },
+          state: { fromLogin: true, email: res.data.user.email, fullname: res.data.user.fullname },
         });
       } else {
-        // normal case → go to dashboard
         navigate("/dashboard");
       }
     } catch (err) {
-      console.error(err);
       const data = err.response?.data;
-
-      if (typeof data === "string") {
-        setErrorMsg(data);
-      } else if (data?.non_field_errors) {
-        setErrorMsg(data.non_field_errors[0]);
-      } else if (data?.detail) {
-        setErrorMsg(data.detail);
-      } else {
-        setErrorMsg("Login failed. Check your credentials and try again.");
-      }
+      setErrorMsg(data?.detail || data?.non_field_errors?.[0] || "Invalid credentials.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100">
-      <div className="w-full max-w-md bg-white shadow-md rounded-xl p-6 sm:p-8">
-        <h2 className="text-2xl font-semibold text-center text-slate-800 mb-2">
-          Admin Login
-        </h2>
-        <p className="text-sm text-slate-500 text-center mb-6">
-          Sign in with your admin email and password, or use Google.
-        </p>
+    <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC] p-4">
+      <div className="w-full max-w-md bg-white shadow-2xl shadow-slate-200 rounded-[2.5rem] overflow-hidden border border-slate-100">
+        
+        {/* BRAND BANNER */}
+        <div className="bg-blue-600 p-8 text-white relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-8 opacity-10 rotate-12">
+            <ShieldCheck size={120} />
+          </div>
+          <h2 className="text-2xl font-black tracking-tight">Admin Portal</h2>
+          <p className="text-blue-100 text-[10px] font-black mt-2 uppercase tracking-widest flex items-center gap-2">
+            CampuSync <ChevronRight size={12} /> Secure Login
+          </p>
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Email */}
-          <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-slate-700 mb-1"
+        <div className="p-8">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Email Field */}
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Admin Email</label>
+              <div className="relative flex items-center">
+                <Mail className="absolute left-4 text-slate-300" size={18} />
+                <input
+                  type="email"
+                  placeholder="admin@school.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold text-slate-700 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all"
+                />
+              </div>
+            </div>
+
+            {/* Password Field */}
+            <div className="space-y-1">
+              <div className="flex justify-between items-center ml-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Password</label>
+                <Link to="/forgot-password" size={10} className="text-[10px] font-black text-blue-600 uppercase hover:underline">Forgot?</Link>
+              </div>
+              <div className="relative flex items-center">
+                <Lock className="absolute left-4 text-slate-300" size={18} />
+                <input
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold text-slate-700 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all"
+                />
+              </div>
+            </div>
+
+            {errorMsg && (
+              <p className="flex items-center gap-2 p-3 bg-red-50 text-red-600 text-[11px] font-bold rounded-xl border border-red-100 animate-in fade-in slide-in-from-top-2">
+                <AlertCircle size={14}/> {errorMsg}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black text-sm shadow-xl shadow-blue-100 hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
             >
-              Admin Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              placeholder="admin@school.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+              {loading ? "Authenticating..." : <><LogIn size={18} /> Sign In</>}
+            </button>
+          </form>
+
+          {/* SOCIAL LOGIN */}
+          <div className="flex items-center gap-4 my-8">
+            <div className="flex-1 h-px bg-slate-100" />
+            <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Single Sign-on</span>
+            <div className="flex-1 h-px bg-slate-100" />
+          </div>
+
+          <div className="flex justify-center">
+            <GoogleLogin 
+              onSuccess={handleGoogleSuccess} 
+              onError={() => setErrorMsg("Google Login Failed")}
+              theme="outline"
+              shape="pill"
             />
           </div>
 
-          {/* Password */}
-          <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-slate-700 mb-1"
-            >
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              placeholder="Your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-            />
-          </div>
-
-          {errorMsg && (
-            <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-md px-3 py-2">
-              {errorMsg}
-            </p>
-          )}
-
-          {successMsg && (
-            <p className="text-sm text-green-600 bg-green-50 border border-green-100 rounded-md px-3 py-2">
-              {successMsg}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full inline-flex items-center justify-center rounded-lg bg-blue-600 text-white text-sm font-medium py-2.5 mt-2 disabled:opacity-70 disabled:cursor-not-allowed hover:bg-blue-700 transition"
-          >
-            {loading ? "Logging in..." : "Login"}
-          </button>
-        </form>
-
-        {/* Divider */}
-        <div className="flex items-center gap-3 my-6">
-          <div className="flex-1 h-px bg-slate-200" />
-          <span className="text-xs text-slate-400 uppercase tracking-wide">
-            Or
-          </span>
-          <div className="flex-1 h-px bg-slate-200" />
-        </div>
-
-        {/* Google Login */}
-        <div className="flex justify-center">
-          <GoogleLogin
-            onSuccess={handleGoogleSuccess}
-            onError={handleGoogleError}
-          />
-        </div>
-
-        {/* Small footer */}
-        <div className="mt-4 text-center text-xs text-slate-500">
-          <span>Don&apos;t have an account? </span>
-          <Link
-            to="/"
-            className="text-blue-600 hover:underline font-medium"
-          >
-            Create one
-          </Link>
+          <p className="mt-8 text-center text-xs font-bold text-slate-400">
+            Don't have an account? <Link to="/signup" className="text-blue-600 hover:underline">Register School</Link>
+          </p>
         </div>
       </div>
     </div>

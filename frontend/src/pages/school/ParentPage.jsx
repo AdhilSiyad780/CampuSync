@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { 
   User, Mail, Phone, Calendar, Briefcase, 
   Users, Plus, Edit, Eye, Save, X, ChevronRight, 
-  PhoneCall, GraduationCap 
+  PhoneCall, GraduationCap, ShieldCheck, Heart, Trash2
 } from "lucide-react";
 import api from "../../api/axios";
 
@@ -22,6 +22,7 @@ export default function ParentsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [isFormOpen, setIsFormOpen] = useState(false);
 
   const [form, setForm] = useState({
     id: null,
@@ -38,29 +39,29 @@ export default function ParentsPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const init = async () => {
-      setLoading(true);
-      try {
-        const [studRes, parRes] = await Promise.all([
-          api.get("students/"),
-          api.get("parents/")
-        ]);
-        setStudents(studRes.data || []);
-        setParents(parRes.data || []);
-      } catch (err) {
-        if (err.response?.status === 401) navigate("/login");
-        setError("Failed to synchronize data.");
-      } finally {
-        setLoading(false);
-      }
-    };
     init();
   }, [navigate]);
 
+  const init = async () => {
+    setLoading(true);
+    try {
+      const [studRes, parRes] = await Promise.all([
+        api.get("students/"),
+        api.get("parents/")
+      ]);
+      setStudents(studRes.data || []);
+      setParents(parRes.data || []);
+    } catch (err) {
+      if (err.response?.status === 401) navigate("/login");
+      setError("Failed to synchronize directory data.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
-    setError(""); 
-    setSuccess("");
+    setError(""); setSuccess("");
   };
 
   const handleToggleStudent = (studentId) => {
@@ -110,431 +111,191 @@ export default function ParentsPage() {
         is_primary: rel.is_primary,
       })) || [],
     });
+    setIsFormOpen(true);
     setSelectedParent(null);
-    setError("");
-    setSuccess("");
     window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const handleCancel = () => {
-    setForm({
-      id: null, 
-      fullname: "", 
-      email: "", 
-      phone: "", 
-      contact_number: "", 
-      whatsapp_number: "", 
-      occupation: "", 
-      DOB: '', 
-      relations: []
-    });
-    setError("");
-    setSuccess("");
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Frontend validation
-    if (!form.DOB) {
-      setError("Date of birth is required");
-      return;
-    }
-
-    if (!form.fullname.trim()) {
-      setError("Full name is required");
-      return;
-    }
-
-    if (!form.email.trim()) {
-      setError("Email address is required");
-      return;
-    }
-
-    if (!form.contact_number.trim()) {
-      setError("Contact number is required");
-      return;
-    }
-
-    setSaving(true); 
-    setError(""); 
-    setSuccess("");
+    setSaving(true); setError(""); setSuccess("");
 
     try {
-      const payload = { 
-        ...form, 
-        DOB: form.DOB || null
-      };
-      
+      const payload = { ...form, DOB: form.DOB || null };
       if (form.id) {
         await api.put(`parents/${form.id}/`, payload);
-        setSuccess("Information updated successfully.");
+        setSuccess("Parent record updated successfully.");
       } else {
         await api.post("parents/", payload);
-        setSuccess("New parent registered successfully.");
+        setSuccess("New parent registered and credentials sent.");
       }
-      
       const res = await api.get("parents/");
       setParents(res.data);
-      handleCancel();
-      
-      // Scroll to success message
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      setIsFormOpen(false);
+      resetLocalForm();
     } catch (err) {
-      console.error("Save error:", err.response?.data);
       const data = err.response?.data;
-      
-      // Better error handling with specific field errors
-      if (data?.DOB) {
-        setError(`Date of Birth: ${Array.isArray(data.DOB) ? data.DOB[0] : data.DOB}`);
-      } else if (data?.email) {
-        setError(`Email: ${Array.isArray(data.email) ? data.email[0] : data.email}`);
-      } else if (data?.fullname) {
-        setError(`Full Name: ${Array.isArray(data.fullname) ? data.fullname[0] : data.fullname}`);
-      } else if (data?.contact_number) {
-        setError(`Contact Number: ${Array.isArray(data.contact_number) ? data.contact_number[0] : data.contact_number}`);
-      } else if (data?.relations) {
-        setError(`Relations: ${Array.isArray(data.relations) ? data.relations[0] : data.relations}`);
-      } else if (data?.non_field_errors) {
-        setError(data.non_field_errors[0]);
-      } else if (data?.detail) {
-        setError(data.detail);
-      } else {
-        setError("Failed to save parent details. Please check all required fields.");
-      }
-      
-      // Scroll to error message
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      setError(data?.email ? "Email already exists." : "Validation failed. Please check required fields.");
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
+  const resetLocalForm = () => {
+    setForm({ id: null, fullname: "", email: "", phone: "", contact_number: "", whatsapp_number: "", occupation: "", DOB: '', relations: [] });
+  };
+
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>;
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-4 md:p-8">
-      <div className="max-w-6xl mx-auto space-y-8">
+      <div className="max-w-7xl mx-auto space-y-6">
         
-        {/* HEADER */}
+        {/* TOP BAR */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-black text-slate-800 tracking-tight">Parent Directory</h1>
             <p className="text-sm text-slate-500 flex items-center gap-2 mt-1">
-              School Management <ChevronRight size={14} /> <span className="text-blue-600 font-bold">Parents</span>
+              Academic Admin <ChevronRight size={14} /> <span className="text-blue-600 font-bold">Parents Management</span>
             </p>
           </div>
           <button 
-            onClick={() => navigate("/dashboard")} 
-            className="text-sm font-bold text-slate-500 hover:text-blue-600 transition-colors"
+            onClick={() => { resetLocalForm(); setIsFormOpen(!isFormOpen); }}
+            className="px-6 py-3 bg-blue-600 text-white rounded-2xl font-bold shadow-lg shadow-blue-200 flex items-center gap-2 hover:bg-blue-700 transition-all"
           >
-            ← Back to Dashboard
+            {isFormOpen ? <X size={20}/> : <Plus size={20}/>}
+            {isFormOpen ? "Close Form" : "Register Parent"}
           </button>
         </div>
 
-        {/* ALERTS */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-100 text-red-700 rounded-2xl text-sm font-bold animate-in fade-in slide-in-from-top-2">
-            {error}
-          </div>
-        )}
-        {success && (
-          <div className="mb-6 p-4 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-2xl text-sm font-bold animate-in fade-in slide-in-from-top-2">
-            {success}
-          </div>
-        )}
+        {success && <div className="p-4 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-2xl text-sm font-bold animate-in fade-in slide-in-from-top-2">{success}</div>}
+        {error && <div className="p-4 bg-red-50 border border-red-100 text-red-700 rounded-2xl text-sm font-bold animate-in fade-in slide-in-from-top-2">{error}</div>}
 
-        {/* REGISTRATION FORM */}
-        <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-8 overflow-hidden">
-          <div className="flex items-center gap-3 mb-8 pb-4 border-b border-slate-50">
-             <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl">
-               <Plus size={24}/>
-             </div>
-             <h3 className="text-xl font-black text-slate-800">
-               {form.id ? "Update Parent Record" : "Register New Parent"}
-             </h3>
-          </div>
+        {/* REGISTRATION FORM (EXPANDABLE) */}
+        {isFormOpen && (
+          <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden animate-in slide-in-from-top-4 duration-500">
+            <div className="h-24 bg-gradient-to-r from-blue-600 to-indigo-700 flex items-center px-8">
+              <h3 className="text-white font-black text-xl flex items-center gap-3">
+                <Plus className="bg-white/20 p-1.5 rounded-lg" />
+                {form.id ? "Edit Parent Profile" : "Parent Registration"}
+              </h3>
+            </div>
+            
+            <form onSubmit={handleSubmit} className="p-8 grid grid-cols-1 lg:grid-cols-12 gap-10">
+              <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <InputGroup label="Full Name" name="fullname" value={form.fullname} onChange={handleChange} icon={<User size={18}/>} placeholder="John Doe" />
+                <InputGroup label="Email Address" name="email" value={form.email} onChange={handleChange} icon={<Mail size={18}/>} type="email" placeholder="john@example.com" />
+                <InputGroup label="Date of Birth" name="DOB" value={form.DOB} onChange={handleChange} icon={<Calendar size={18}/>} type="date" />
+                <InputGroup label="Phone (Login)" name="phone" value={form.phone} onChange={handleChange} icon={<Phone size={18}/>} />
+                <InputGroup label="Primary Contact" name="contact_number" value={form.contact_number} onChange={handleChange} icon={<PhoneCall size={18}/>} />
+                <InputGroup label="WhatsApp" name="whatsapp_number" value={form.whatsapp_number} onChange={handleChange} icon={<Heart size={18}/>} />
+                <InputGroup label="Occupation" name="occupation" value={form.occupation} onChange={handleChange} icon={<Briefcase size={18}/>} className="md:col-span-2" />
+              </div>
 
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <FormInput 
-              label="Full Name" 
-              name="fullname" 
-              value={form.fullname} 
-              onChange={handleChange} 
-              icon={<User size={18}/>} 
-              required 
-            />
-            <FormInput 
-              label="Email Address" 
-              name="email" 
-              value={form.email} 
-              onChange={handleChange} 
-              icon={<Mail size={18}/>} 
-              type="email" 
-              required 
-            />
-            <FormInput 
-              label="Date of Birth" 
-              name="DOB" 
-              value={form.DOB} 
-              onChange={handleChange} 
-              icon={<Calendar size={18}/>} 
-              type="date" 
-              required 
-            />
-            <FormInput 
-              label="Contact Number" 
-              name="contact_number" 
-              value={form.contact_number} 
-              onChange={handleChange} 
-              icon={<PhoneCall size={18}/>} 
-              required 
-            />
-            <FormInput 
-              label="WhatsApp Number" 
-              name="whatsapp_number" 
-              value={form.whatsapp_number} 
-              onChange={handleChange} 
-              icon={<Phone size={18}/>} 
-            />
-            <FormInput 
-              label="Occupation" 
-              name="occupation" 
-              value={form.occupation} 
-              onChange={handleChange} 
-              icon={<Briefcase size={18}/>} 
-            />
-
-            <div className="md:col-span-3">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 block">
-                Linked Students
-              </label>
-              {students.length === 0 ? (
-                <div className="p-8 text-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
-                  <Users size={32} className="mx-auto text-slate-300 mb-2" />
-                  <p className="text-sm font-bold text-slate-400">No students available</p>
-                  <p className="text-xs text-slate-400 mt-1">Add students first to link them with parents</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-60 overflow-y-auto pr-2">
-                  {students.map((s) => {
+              {/* SIDEBAR LINKING */}
+              <div className="lg:col-span-4 space-y-4">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Link Students</label>
+                <div className="bg-slate-50 rounded-[2rem] border border-slate-100 p-4 max-h-[400px] overflow-y-auto space-y-2">
+                  {students.map(s => {
                     const rel = form.relations.find(r => r.student_id === s.id);
                     return (
-                      <div 
-                        key={s.id} 
-                        className={`p-4 rounded-[1.5rem] border transition-all ${
-                          rel ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-slate-100'
-                        }`}
-                      >
+                      <div key={s.id} className={`p-4 rounded-2xl border transition-all ${rel ? 'bg-white border-blue-200 shadow-sm' : 'border-transparent'}`}>
                         <label className="flex items-center gap-3 cursor-pointer">
-                          <input 
-                            type="checkbox" 
-                            checked={!!rel} 
-                            onChange={() => handleToggleStudent(s.id)} 
-                            className="w-5 h-5 rounded-lg text-blue-600 border-slate-300 focus:ring-0" 
-                          />
+                          <input type="checkbox" checked={!!rel} onChange={() => handleToggleStudent(s.id)} className="w-5 h-5 rounded-lg text-blue-600 border-slate-300" />
                           <div className="flex-1">
-                            <p className="text-sm font-bold text-slate-800 leading-none">
-                              {s.fullname}
-                            </p>
-                            <p className="text-[10px] text-slate-500 font-bold mt-1 uppercase">
-                              {s.admission_number}
-                            </p>
+                            <p className="text-sm font-bold text-slate-800">{s.fullname}</p>
+                            <p className="text-[9px] font-black text-slate-400 uppercase">{s.admission_number}</p>
                           </div>
                         </label>
                         {rel && (
-                          <div className="mt-3 pt-3 border-t border-blue-100 flex items-center justify-between gap-2">
-                             <select 
-                               name="relation_type" 
-                               value={rel.relation_type} 
-                               onChange={(e) => handleRelationChange(s.id, "relation_type", e.target.value)} 
-                               className="text-[10px] font-bold uppercase bg-white border border-blue-200 rounded-lg px-2 py-1 outline-none"
-                             >
-                                {RELATION_OPTIONS.map(opt => (
-                                  <option key={opt.value} value={opt.value}>
-                                    {opt.label}
-                                  </option>
-                                ))}
-                             </select>
-                             <label className="flex items-center gap-1.5 text-[10px] font-black text-blue-600 uppercase cursor-pointer">
-                                <input 
-                                  type="radio" 
-                                  checked={rel.is_primary} 
-                                  onChange={() => handleRelationChange(s.id, "is_primary", true)} 
-                                /> 
-                                Primary
-                             </label>
+                          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+                            <select value={rel.relation_type} onChange={e => handleRelationChange(s.id, 'relation_type', e.target.value)} className="text-[10px] font-bold uppercase bg-slate-100 border-none rounded-lg px-2 py-1 outline-none">
+                              {RELATION_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                            </select>
+                            <label className="flex items-center gap-1.5 text-[9px] font-black text-blue-600 uppercase">
+                              <input type="radio" checked={rel.is_primary} onChange={() => handleRelationChange(s.id, 'is_primary', true)} /> Primary
+                            </label>
                           </div>
                         )}
                       </div>
-                    );
+                    )
                   })}
                 </div>
-              )}
-            </div>
-
-            <div className="md:col-span-3 flex gap-4 pt-6 border-t border-slate-50">
-              <button 
-                type="submit" 
-                disabled={saving} 
-                className="bg-blue-600 text-white px-8 py-3 rounded-2xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 disabled:opacity-50 transition-all flex items-center gap-2"
-              >
-                {saving ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save size={18}/> 
-                    {form.id ? "Update Record" : "Register Parent"}
-                  </>
-                )}
-              </button>
-              {form.id && (
-                <button 
-                  type="button" 
-                  onClick={handleCancel} 
-                  className="bg-slate-100 text-slate-600 px-8 py-3 rounded-2xl font-bold hover:bg-slate-200 transition-all flex items-center gap-2"
-                >
-                  <X size={18}/> Cancel
+                <button type="submit" disabled={saving} className="w-full bg-[#1E293B] text-white py-4 rounded-2xl font-black shadow-xl flex items-center justify-center gap-3 hover:bg-slate-800">
+                   {saving ? "Saving..." : <><Save size={18}/> {form.id ? "Update Record" : "Save Parent"}</>}
                 </button>
-              )}
-            </div>
-          </form>
-        </div>
-
-        {/* LIST SECTION */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {parents.length === 0 ? (
-            <div className="md:col-span-2 lg:col-span-3 p-12 text-center bg-white rounded-[2.5rem] border-2 border-dashed border-slate-200">
-              <Users size={48} className="mx-auto text-slate-300 mb-4" />
-              <h3 className="text-lg font-bold text-slate-600 mb-2">No Parents Yet</h3>
-              <p className="text-sm text-slate-400">Register your first parent using the form above</p>
-            </div>
-          ) : (
-            parents.map((p) => (
-              <div 
-                key={p.id} 
-                className="bg-white rounded-[2.5rem] border border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden group"
-              >
-                 <div className="flex justify-between items-start mb-6">
-                    <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 font-black text-xl">
-                      {p.fullname.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="flex gap-2">
-                      <button 
-                        onClick={() => setSelectedParent(p)} 
-                        className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
-                        title="View Details"
-                      >
-                        <Eye size={18}/>
-                      </button>
-                      <button 
-                        onClick={() => handleEdit(p)} 
-                        className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                        title="Edit Parent"
-                      >
-                        <Edit size={18}/>
-                      </button>
-                    </div>
-                 </div>
-                 <h4 className="text-lg font-black text-slate-800 mb-1">{p.fullname}</h4>
-                 <p className="text-xs text-slate-500 font-medium mb-4 flex items-center gap-1">
-                   <Mail size={12}/> {p.email}
-                 </p>
-                 
-                 <div className="space-y-3 pt-4 border-t border-slate-50">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                        Children
-                      </span>
-                      <span className="bg-blue-600 text-white text-[10px] font-black px-2 py-0.5 rounded-lg">
-                        {p.relations?.length || 0}
-                      </span>
-                    </div>
-                    {p.relations && p.relations.length > 0 ? (
-                      <div className="flex flex-wrap gap-1.5">
-                        {p.relations.map(r => (
-                          <span 
-                            key={r.id} 
-                            className="text-[9px] font-black bg-slate-100 text-slate-600 px-2.5 py-1 rounded-md uppercase"
-                          >
-                            {r.student_name}
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-xs text-slate-400 italic">No children linked</p>
-                    )}
-                 </div>
               </div>
-            ))
-          )}
-        </div>
-      </div>
+            </form>
+          </div>
+        )}
 
-      {/* PARENT DETAILS MODAL */}
-      {selectedParent && (
-        <div 
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
-          onClick={() => setSelectedParent(null)}
-        >
-          <div 
-            className="bg-white rounded-[2.5rem] max-w-2xl w-full p-8 max-h-[90vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex justify-between items-start mb-6">
-              <h2 className="text-2xl font-black text-slate-800">Parent Details</h2>
-              <button 
-                onClick={() => setSelectedParent(null)}
-                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-all"
-              >
-                <X size={20}/>
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <DetailRow label="Full Name" value={selectedParent.fullname} icon={<User size={16}/>} />
-              <DetailRow label="Email" value={selectedParent.email} icon={<Mail size={16}/>} />
-              <DetailRow label="Date of Birth" value={selectedParent.DOB || "Not provided"} icon={<Calendar size={16}/>} />
-              <DetailRow label="Contact Number" value={selectedParent.contact_number} icon={<PhoneCall size={16}/>} />
-              <DetailRow label="WhatsApp Number" value={selectedParent.whatsapp_number || "Not provided"} icon={<Phone size={16}/>} />
-              <DetailRow label="Occupation" value={selectedParent.occupation || "Not provided"} icon={<Briefcase size={16}/>} />
-              
-              <div className="pt-4 border-t border-slate-100">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
-                  Linked Students
-                </p>
-                {selectedParent.relations && selectedParent.relations.length > 0 ? (
-                  <div className="space-y-2">
-                    {selectedParent.relations.map(rel => (
-                      <div 
-                        key={rel.id} 
-                        className="flex items-center justify-between p-3 bg-slate-50 rounded-xl"
-                      >
-                        <div>
-                          <p className="text-sm font-bold text-slate-800">{rel.student_name}</p>
-                          <p className="text-xs text-slate-500">Relation: {rel.relation_type}</p>
-                        </div>
-                        {rel.is_primary && (
-                          <span className="bg-blue-600 text-white text-[9px] font-black px-2 py-1 rounded uppercase">
-                            Primary
-                          </span>
-                        )}
+        {/* LIST SECTION - GRID STYLE */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {parents.map((p) => (
+            <div key={p.id} className="bg-white rounded-[2.5rem] border border-slate-200 p-6 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
+               <div className="flex justify-between items-start mb-6">
+                  <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-xl font-black">
+                    {p.fullname.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setSelectedParent(p)} className="p-2.5 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"><Eye size={18}/></button>
+                    <button onClick={() => handleEdit(p)} className="p-2.5 bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"><Edit size={18}/></button>
+                    <button className="p-2.5 bg-slate-50 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"><Trash2 size={18}/></button>
+                  </div>
+               </div>
+               
+               <h4 className="text-xl font-black text-slate-800 tracking-tight">{p.fullname}</h4>
+               <p className="text-sm font-medium text-slate-500 flex items-center gap-2 mt-1 truncate"><Mail size={14} className="text-slate-300"/> {p.email}</p>
+               
+               <div className="mt-6 pt-6 border-t border-slate-50 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Linked Children</span>
+                    <span className="px-2.5 py-1 bg-indigo-50 text-indigo-600 text-[10px] font-black rounded-lg uppercase">{p.relations?.length || 0} Students</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {p.relations?.map(r => (
+                      <div key={r.id} className="flex items-center gap-1.5 px-3 py-1 bg-slate-50 border border-slate-100 rounded-full">
+                        <span className="text-[10px] font-bold text-slate-600">{r.student_name}</span>
+                        {r.is_primary && <ShieldCheck size={10} className="text-emerald-500"/>}
                       </div>
                     ))}
                   </div>
-                ) : (
-                  <p className="text-sm text-slate-400 italic">No students linked</p>
-                )}
-              </div>
+               </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* DETAIL MODAL (MODERN VIEW) */}
+      {selectedParent && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4" onClick={() => setSelectedParent(null)}>
+          <div className="bg-white rounded-[3rem] w-full max-w-2xl p-10 relative overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="absolute top-0 right-0 p-10 opacity-5"><Users size={120}/></div>
+            <button onClick={() => setSelectedParent(null)} className="absolute top-8 right-8 text-slate-400 hover:text-red-500"><X size={24}/></button>
+            
+            <h2 className="text-3xl font-black text-slate-800 mb-8">Parent Profile</h2>
+            <div className="grid grid-cols-2 gap-8 mb-10">
+              <DetailItem label="Full Name" value={selectedParent.fullname} icon={<User size={18}/>} />
+              <DetailItem label="Email" value={selectedParent.email} icon={<Mail size={18}/>} />
+              <DetailItem label="Contact" value={selectedParent.contact_number} icon={<PhoneCall size={18}/>} />
+              <DetailItem label="WhatsApp" value={selectedParent.whatsapp_number} icon={<Phone size={18}/>} />
+              <DetailItem label="Occupation" value={selectedParent.occupation} icon={<Briefcase size={18}/>} />
+              <DetailItem label="DOB" value={selectedParent.DOB} icon={<Calendar size={18}/>} />
+            </div>
+
+            <div className="bg-slate-50 rounded-[2rem] p-6 border border-slate-100">
+               <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><GraduationCap size={14}/> Academic Relations</h4>
+               <div className="space-y-3">
+                  {selectedParent.relations?.map(rel => (
+                    <div key={rel.id} className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm">
+                      <span className="text-sm font-bold text-slate-800">{rel.student_name}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black text-blue-600 uppercase bg-blue-50 px-3 py-1 rounded-lg">{rel.relation_type}</span>
+                        {rel.is_primary && <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-lg">Primary</span>}
+                      </div>
+                    </div>
+                  ))}
+               </div>
             </div>
           </div>
         </div>
@@ -543,33 +304,25 @@ export default function ParentsPage() {
   );
 }
 
-function FormInput({ label, icon, required, ...props }) {
+function InputGroup({ label, icon, className, ...props }) {
   return (
-    <div className="space-y-2">
-      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
+    <div className={`space-y-2 ${className}`}>
+      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{label}</label>
       <div className="relative flex items-center">
-        <div className="absolute left-4 text-slate-300">{icon}</div>
-        <input 
-          {...props} 
-          required={required}
-          className="w-full bg-slate-50 border border-slate-100 rounded-[1.2rem] pl-11 pr-4 py-3 text-sm font-bold text-slate-700 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all" 
-        />
+        <div className="absolute left-4 text-slate-300 transition-colors group-focus-within:text-blue-500">{icon}</div>
+        <input {...props} className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold text-slate-700 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all" />
       </div>
     </div>
   );
 }
 
-function DetailRow({ label, value, icon }) {
+function DetailItem({ label, value, icon }) {
   return (
-    <div className="flex items-center gap-4">
-      <div className="p-2 bg-slate-50 rounded-lg text-slate-400">
-        {icon}
-      </div>
-      <div className="flex-1">
+    <div className="flex gap-4 items-start">
+      <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl">{icon}</div>
+      <div>
         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
-        <p className="text-sm font-bold text-slate-800">{value}</p>
+        <p className="text-sm font-bold text-slate-800">{value || "—"}</p>
       </div>
     </div>
   );
