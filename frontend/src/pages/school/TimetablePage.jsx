@@ -37,14 +37,19 @@ export default function TimetablePage() {
       const [subjectsRes, timeSlotsRes, classesRes, teachersRes] = await Promise.all([
         api.get("subjects/"),
         api.get("timeslot/"),
-        // api.get("classes/"),
-        // api.get("teachers/available/")
+        api.get("classes/"),
+        api.get("teachers/available/")
       ]);
-      
+      console.log('Teachers Response:', teachersRes.data);
+    console.log('Subjects Response:', subjectsRes.data);
+    console.log('Classes Response:', classesRes.data);
+    console.log('TimeSlots Response:', timeSlotsRes.data);
+    
       setSubjects(subjectsRes.data || []);
-    //   setTimeSlots(timeSlotsRes.data || []);
-    //   setClasses(classesRes.data || []);
-    //   setTeachers(teachersRes.data || []);
+      setTimeSlots(timeSlotsRes.data || []);
+      setClasses(classesRes.data || []);
+      setTeachers(teachersRes.data || []);
+      
     } catch (err) {
       console.error("Load error:", err);
       setError("Failed to load data");
@@ -605,7 +610,6 @@ function TimeSlotsView({ timeSlots, setTimeSlots, setError, setSuccess }) {
 // ============================================
 // TIMETABLE VIEW  
 // ============================================
-
 function TimetableView({ 
   classes, timeSlots, subjects, teachers, 
   selectedClass, timetableGrid, loadTimetableGrid,
@@ -613,6 +617,7 @@ function TimetableView({
 }) {
   const [editingCell, setEditingCell] = useState(null);
   const [cellForm, setCellForm] = useState({
+    id: null,
     subject: "",
     teacher: "",
     room_number: ""
@@ -640,8 +645,8 @@ function TimetableView({
   };
 
   const handleSaveCell = async () => {
-    if (!cellForm.subject) {
-      setError("Please select a subject");
+    if (!cellForm.subject || !cellForm.teacher) {
+      setError("Please select both a subject and a teacher");
       return;
     }
 
@@ -650,26 +655,30 @@ function TimetableView({
 
     try {
       const payload = {
-        school_class: selectedClass,
+        school_class: Number(selectedClass),
         day_of_week: editingCell.day,
-        time_slot: editingCell.timeSlot,
-        subject: cellForm.subject || null,
-        teacher: cellForm.teacher || null,
+        time_slot: Number(editingCell.timeSlot),
+        subject: Number(cellForm.subject),
+        teacher: Number(cellForm.teacher),
         room_number: cellForm.room_number || ""
       };
 
       if (cellForm.id) {
-        await api.put(`timetable/${cellForm.id}/`, payload);
+        // Updated to match your router basename 'timetable-entry'
+        await api.put(`timetable-entries/${cellForm.id}/`, payload);
       } else {
-        await api.post("timetable/", payload);
+        await api.post("timetable-entries/", payload);
+        
       }
 
-      setSuccess("Timetable updated!");
+      setSuccess("Timetable updated successfully!");
       setEditingCell(null);
       loadTimetableGrid(selectedClass);
     } catch (err) {
       console.error("Save error:", err);
-      const errorMsg = err.response?.data?.teacher?.[0] || "Failed to save";
+      const errorMsg = err.response?.data?.non_field_errors?.[0] || 
+                       err.response?.data?.teacher?.[0] || 
+                       "Failed to save assignment";
       setError(errorMsg);
     } finally {
       setSaving(false);
@@ -682,10 +691,10 @@ function TimetableView({
       return;
     }
 
-    if (!window.confirm("Remove this entry?")) return;
+    if (!window.confirm("Are you sure you want to remove this entry?")) return;
 
     try {
-      await api.delete(`timetable/${cellForm.id}/`);
+      await api.delete(`timetable-entries/${cellForm.id}/`);
       setSuccess("Entry removed!");
       setEditingCell(null);
       loadTimetableGrid(selectedClass);
@@ -695,136 +704,161 @@ function TimetableView({
   };
 
   return (
-  <div className="space-y-6">
-    {/* Class Selector */}
-    <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-8">
-      <h3 className="text-xl font-black text-slate-800 mb-6">Select Class</h3>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {classes.map((cls) => (
-          <button
-            key={cls.id}
-            onClick={() => handleClassSelect(cls.id)}
-            className={`p-4 rounded-2xl border-2 font-bold transition-all ${
-              selectedClass === cls.id
-                ? "bg-indigo-600 text-white border-indigo-600 shadow-lg"
-                : "bg-slate-50 text-slate-700 border-slate-200 hover:border-indigo-300"
-            }`}
-          >
-            <div className="text-lg">
-              {cls.class_name} - {cls.division}
-            </div>
-            <div className="text-xs opacity-75">{cls.academic_year}</div>
-          </button>
-        ))}
+    <div className="space-y-6">
+      {/* Class Selector */}
+      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-8">
+        <h3 className="text-xl font-black text-slate-800 mb-6">Select Class</h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {classes.map((cls) => (
+            <button
+              key={cls.id}
+              onClick={() => handleClassSelect(cls.id)}
+              className={`p-4 rounded-2xl border-2 font-bold transition-all ${
+                selectedClass === cls.id
+                  ? "bg-indigo-600 text-white border-indigo-600 shadow-lg"
+                  : "bg-slate-50 text-slate-700 border-slate-200 hover:border-indigo-300"
+              }`}
+            >
+              <div className="text-lg">
+                {cls.class_name} - {cls.division}
+              </div>
+              <div className="text-xs opacity-75">{cls.academic_year}</div>
+            </button>
+          ))}
+        </div>
       </div>
-    </div>
 
-    {/* Timetable Grid */}
-    {timetableGrid && (
-      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-8 overflow-x-auto">
-        <div className="flex items-center justify-between mb-8">
-          <h3 className="text-xl font-black text-slate-800 tracking-tight">
-            Class Schedule:{" "}
-            <span className="text-indigo-600">{timetableGrid.class_name}</span>
-          </h3>
-          <div className="flex gap-4">
-            <div className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-400">
-              <div className="w-3 h-3 bg-amber-100 border border-amber-200 rounded"></div>{" "}
-              Break
+      {/* Timetable Grid */}
+      {timetableGrid && (
+        <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-8 overflow-x-auto">
+          {/* Header logic remains same */}
+          <div className="flex items-center justify-between mb-8">
+            <h3 className="text-xl font-black text-slate-800 tracking-tight">
+              Class Schedule: <span className="text-indigo-600">{timetableGrid.class_name}</span>
+            </h3>
+            <div className="flex gap-4">
+               <div className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-400">
+                <div className="w-3 h-3 bg-amber-100 border border-amber-200 rounded"></div> Break
+              </div>
+              <div className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-400">
+                <div className="w-3 h-3 bg-white border border-slate-200 rounded"></div> Lecture
+              </div>
             </div>
-            <div className="flex items-center gap-2 text-[10px] font-black uppercase text-slate-400">
-              <div className="w-3 h-3 bg-white border border-slate-200 rounded"></div>{" "}
-              Lecture
+          </div>
+
+          <div className="min-w-[1200px]">
+            <table className="w-full border-separate border-spacing-0">
+              <thead>
+                <tr>
+                  <th className="p-4 bg-slate-50 border border-slate-200 rounded-tl-2xl font-black text-slate-500 text-[10px] uppercase tracking-widest text-center">Time</th>
+                  {DAYS.map((day, index) => (
+                    <th key={day.value} className={`p-4 bg-slate-50 border-y border-r border-slate-200 font-black text-slate-700 text-sm ${index === DAYS.length - 1 ? "rounded-tr-2xl" : ""}`}>{day.label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {timeSlots.map((slot) => (
+                  <tr key={slot.id} className="group">
+                    <td className="p-4 border-l border-b border-r border-slate-200 bg-slate-50/30 text-center">
+                      <p className="font-black text-slate-700 text-xs">{slot.name}</p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase whitespace-nowrap">{slot.start_time} - {slot.end_time}</p>
+                    </td>
+                    {DAYS.map((day) => {
+                      const entry = timetableGrid.grid[day.value]?.find(e => e.time_slot === slot.id);
+                      return (
+                        <td 
+                          key={`${day.value}-${slot.id}`} 
+                          onClick={() => !slot.is_break && handleCellClick(day.value, slot)}
+                          className={`p-2 border-r border-b border-slate-200 transition-all relative ${slot.is_break ? "bg-amber-50/40" : "hover:bg-indigo-50/50 cursor-pointer"}`}
+                        >
+                          {slot.is_break ? (
+                            <div className="flex items-center justify-center py-4 text-[10px] font-black text-amber-500 uppercase tracking-widest opacity-60">{slot.name}</div>
+                          ) : entry ? (
+                            <div className="p-3 rounded-2xl bg-white border border-slate-100 shadow-sm group-hover:border-indigo-200 transition-all">
+                              <p className="font-black text-indigo-600 text-xs truncate leading-tight mb-1">{entry.subject_name}</p>
+                              <p className="text-[10px] text-slate-500 font-bold truncate">{entry.teacher_name}</p>
+                            </div>
+                          ) : (
+                            <div className="h-12 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600"><Plus size={16} /></div>
+                            </div>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ASSIGNMENT MODAL OVERLAY */}
+      {editingCell && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-md shadow-2xl p-8 animate-in zoom-in-95">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-black text-slate-800">Assign Period</h3>
+              <button onClick={() => setEditingCell(null)} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase">Subject</label>
+                <select 
+                  className="w-full p-4 bg-slate-50 rounded-2xl border-none font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500"
+                  value={cellForm.subject}
+                  onChange={e => setCellForm({...cellForm, subject: e.target.value})}
+                >
+                  <option value="">Select Subject</option>
+                  {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase">Teacher</label>
+                <select 
+                  className="w-full p-4 bg-slate-50 rounded-2xl border-none font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500"
+                  value={cellForm.teacher}
+                  onChange={e => setCellForm({...cellForm, teacher: e.target.value})}
+                >
+                  <option value="">Select Teacher</option>
+                  {teachers.map(t => <option key={t.id} value={t.id}>{t.fullname}</option>)}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase">Room Number</label>
+                <input 
+                  className="w-full p-4 bg-slate-50 rounded-2xl border-none font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="e.g. Room 101"
+                  value={cellForm.room_number}
+                  onChange={e => setCellForm({...cellForm, room_number: e.target.value})}
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-2 mt-8">
+              <button 
+                onClick={handleSaveCell}
+                disabled={saving}
+                className="w-full bg-indigo-600 text-white p-4 rounded-2xl font-black shadow-lg hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {saving ? 'Saving...' : 'Save Assignment'}
+              </button>
+              {cellForm.id && (
+                <button 
+                  onClick={handleDeleteCell}
+                  className="w-full p-4 text-red-500 font-bold hover:bg-red-50 rounded-2xl transition-all"
+                >
+                  Remove Entry
+                </button>
+              )}
             </div>
           </div>
         </div>
-
-        <div className="min-w-[1200px]">
-          <table className="w-full border-separate border-spacing-0">
-            <thead>
-              <tr>
-                <th className="p-4 bg-slate-50 border border-slate-200 rounded-tl-2xl font-black text-slate-500 text-[10px] uppercase tracking-widest text-center">
-                  Time
-                </th>
-                {DAYS.map((day, index) => (
-                  <th
-                    key={day.value}
-                    className={`p-4 bg-slate-50 border-y border-r border-slate-200 font-black text-slate-700 text-sm ${
-                      index === DAYS.length - 1 ? "rounded-tr-2xl" : ""
-                    }`}
-                  >
-                    {day.label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {timeSlots.map((slot) => (
-                <tr key={slot.id} className="group">
-                  {/* Time Column */}
-                  <td className="p-4 border-l border-b border-r border-slate-200 bg-slate-50/30 text-center">
-                    <p className="font-black text-slate-700 text-xs">
-                      {slot.name}
-                    </p>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase whitespace-nowrap">
-                      {slot.start_time} - {slot.end_time}
-                    </p>
-                  </td>
-
-                  {/* Day Columns */}
-                  {DAYS.map((day) => {
-                    const entry = timetableGrid.grid[day.value]?.find(
-                      (e) => e.time_slot === slot.id
-                    );
-
-                    return (
-                      <td
-                        key={`${day.value}-${slot.id}`}
-                        onClick={() =>
-                          !slot.is_break && handleCellClick(day.value, slot)
-                        }
-                        className={`p-2 border-r border-b border-slate-200 transition-all relative ${
-                          slot.is_break
-                            ? "bg-amber-50/40 cursor-default"
-                            : "hover:bg-indigo-50/50 cursor-pointer"
-                        }`}
-                      >
-                        {slot.is_break ? (
-                          <div className="flex items-center justify-center py-4">
-                            <span className="text-[10px] font-black text-amber-500 uppercase tracking-[0.3em] opacity-60">
-                              {slot.name}
-                            </span>
-                          </div>
-                        ) : entry ? (
-                          <div className="p-3 rounded-2xl bg-white border border-slate-100 shadow-sm group-hover:border-indigo-200 transition-all animate-in fade-in zoom-in-95">
-                            <p className="font-black text-indigo-600 text-xs truncate leading-tight mb-1">
-                              {entry.subject_name}
-                            </p>
-                            <p className="text-[10px] text-slate-500 font-bold truncate">
-                              {entry.teacher_name}
-                            </p>
-                            {entry.room_number && (
-                              <div className="mt-2 text-[8px] bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded-md font-black uppercase w-fit">
-                                RM {entry.room_number}
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="h-12 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
-                              <Plus size={16} />
-                            </div>
-                          </div>
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    )}
-  </div>
-)}
+      )}
+    </div>
+  );
+}

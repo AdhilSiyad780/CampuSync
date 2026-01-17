@@ -104,5 +104,29 @@ class TimeSlot(models.Model):
     def __str__(self):
         return f"{self.name}: {self.start_time} - {self.end_time}"
     
+class TimetableEntry(models.Model):
+    DAYS_OF_WEEK = [
+        ('monday', 'Monday'),
+        ('tuesday', 'Tuesday'),
+        ('wednesday', 'Wednesday'),
+        ('thursday', 'Thursday'),
+        ('friday', 'Friday'),
+        ('saturday', 'Saturday'),
+    ]
 
-    
+    tenant = models.ForeignKey('core.Tenant', on_delete=models.CASCADE)
+    school_class = models.ForeignKey('SchoolClass', on_delete=models.CASCADE, related_name='timetable_entries')
+    day_of_week = models.CharField(max_length=10, choices=DAYS_OF_WEEK)
+    time_slot = models.ForeignKey('TimeSlot', on_delete=models.CASCADE)
+    subject = models.ForeignKey('Subject', on_delete=models.CASCADE)
+    teacher = models.ForeignKey('core.User', on_delete=models.CASCADE, limit_choices_to={'user_type': 'teacher'})
+    room_number = models.CharField(max_length=20, blank=True, null=True)
+
+    class Meta:
+        # Security: A teacher cannot be in two different classes at the same time
+        unique_together = ('day_of_week', 'time_slot', 'teacher')
+        ordering = ['time_slot__order']
+
+    def __str__(self):
+        return f"{self.school_class} | {self.day_of_week} | {self.time_slot.name}"
+

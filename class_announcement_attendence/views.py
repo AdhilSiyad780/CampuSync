@@ -5,8 +5,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
-from .models import Announcement, SchoolClass, Subject,TimeSlot
-from .serializers import AnnouncementSerializer, SchoolClassSerializer,SubjectSerializer,TimeSlotSerializer
+from .models import Announcement, SchoolClass, Subject,TimeSlot,TimetableEntry
+from .serializers import (AnnouncementSerializer, SchoolClassSerializer,SubjectSerializer,
+                          TimeSlotSerializer,TimeTableEntrySerializers)
 from core.models import User
 from django.db.models import Q  
 
@@ -119,6 +120,7 @@ class AnnouncementDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 
+
 class SubjectView(viewsets.ModelViewSet):
     serializer_class = SubjectSerializer
     permission_classes = [IsAuthenticated]
@@ -137,3 +139,40 @@ class TimeSlotViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(tenant=self.request.user.tenant)
+
+
+class TableEntryView(viewsets.ModelViewSet):
+    serializer_class = TimeTableEntrySerializers
+    permission_classes = [IsAuthenticated]
+    def get_queryset(self):
+        queryset = TimetableEntry.objects.filter(tenant=self.request.user.tenant)
+        class_id = self.request.query_params.get('class_id')
+        if  class_id:
+            queryset = queryset.filter(schootclass_id = class_id)
+        return queryset
+    def perform_create(self,serializer):
+        serializer.save(tenant=self.request.user.tenant)
+
+class TimetableGridView(APIView):
+    serializer_class = TimeTableEntrySerializers
+    permission_classes = [IsAuthenticated]
+    def get(self,request,class_id):
+        target_class = SchoolClass.objects.get(id=class_id,tenant=request.user.tenant)
+        entries = TimetableEntry.objects.filter(school_class=target_class)
+        days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+        grid_data = {day: [] for day in days}
+        for entry in entries:
+            grid_data[entry.day_of_week].append({
+                "id": entry.id,
+                "time_slot": entry.time_slot.id,
+                "subject_name": entry.subject.name,
+                "teacher_name": entry.teacher.fullname,
+                "room_number": entry.room_number,
+                "subject": entry.subject.id, # for the edit form
+                "teacher": entry.teacher.id    # for the edit form
+            })
+            
+        return Response({
+            "class_name": f"{target_class.class_name} - {target_class.division}",
+            "grid": grid_data
+        })

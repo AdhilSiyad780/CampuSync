@@ -1,6 +1,6 @@
 from django.utils import timezone
 from rest_framework import serializers
-from .models import Announcement, SchoolClass,Subject,TimeSlot
+from .models import Announcement, SchoolClass,Subject,TimeSlot,TimetableEntry
 from core.models import User
 
 class ClassTeacherSerializer(serializers.ModelSerializer):
@@ -128,3 +128,49 @@ class TimeSlotSerializer(serializers.ModelSerializer):
         validated_data['tenant'] =  request.user.tenant
         return super().create(validated_data)
 
+class TimeTableEntrySerializers(serializers.ModelSerializer):
+    teacher_name = serializers.ReadOnlyField(source='teacher.fullname')
+    subject_name = serializers.ReadOnlyField(source='subject.name')
+    slot_name = serializers.ReadOnlyField(source='time_slot.name')  # Fixed typo
+    
+    class Meta:
+        model = TimetableEntry
+        fields = '__all__'
+        read_only_fields = ['tenant']
+    
+    def validate_teacher(self, value):
+        """Ensure teacher belongs to the same tenant"""
+        request = self.context.get('request')
+        if value.tenant != request.user.tenant:
+            raise serializers.ValidationError("Teacher does not belong to your school")
+        return value
+    
+    def validate_subject(self, value):
+        """Ensure subject belongs to the same tenant"""
+        request = self.context.get('request')
+        if value.tenant != request.user.tenant:
+            raise serializers.ValidationError("Subject does not belong to your school")
+        return value
+    
+    def validate(self, data):
+        day = data.get('day_of_week')
+        slot = data.get('time_slot')
+        teacher = data.get('teacher')
+        instance_id = self.instance.id if self.instance else None
+        
+        conflict = TimetableEntry.objects.filter(
+            day_of_week=day,
+            time_slot=slot,
+            teacher=teacher
+        ).exclude(id=instance_id).exists()
+        
+        if conflict:
+            raise serializers.ValidationError({
+                'teacher': 'This teacher already has another class during the same time slot'
+            })
+        return data
+    
+    def create(self, validated_data):
+        request = self.context.get('request')
+        validated_data['tenant'] = request.user.tenant  # Fixed typo: 'tenent' -> 'tenant'
+        return super().create(validated_data)
