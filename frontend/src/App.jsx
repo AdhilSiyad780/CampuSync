@@ -14,6 +14,7 @@ import ParentsPage from "./pages/school/ParentPage";
 import AdminProfile from './pages/school/AdminProfile.jsx'
 import ClassesPage from "./pages/school/ClassesPage.jsx";
 import AnnouncementsPage from "./pages/school/AnnouncementsPage.jsx";
+import TimetablePage from "./pages/school/TimetablePage.jsx";
 // ---------- SUPERADMIN PAGES ----------
 import LoginPage from "./pages/SuperAdminLogin";
 import Layout from "./componets/Layout";
@@ -62,6 +63,7 @@ export default function App() {
         <Route path="/parents"  element={<ParentsPage/>}/>
         <Route path="/classes"  element={<ClassesPage/>}/>
         <Route path="/announcements"  element={<AnnouncementsPage/>}/>
+        <Route path="/timetable"  element={<TimetablePage/>}/>
 
 
 

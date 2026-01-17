@@ -1,11 +1,18 @@
-from django.urls import path
+from django.urls import path,include
 from .views import (
     AnnouncementDetailView,
     AnnouncementListCreateView,
     SchoolClassListCreateView,
     SchoolClassRetrieveUpdateDestroyView,
-    AvailableTeachersView
+    AvailableTeachersView,
+    SubjectView
 )
+from rest_framework.routers import DefaultRouter
+
+router = DefaultRouter()
+
+
+router.register(r'subjects',SubjectView,basename='subject')
 
 urlpatterns = [
     path('classes/', SchoolClassListCreateView.as_view(), name='class-list-create'),
@@ -15,5 +22,7 @@ urlpatterns = [
     # Path for Viewing, Updating, or Deleting a specific announcement
     # maps to GET, PUT/PATCH, and DELETE
     path('announcements/<int:pk>/', AnnouncementDetailView.as_view(), name='announcement-detail'),
+
+    path('',include(router.urls))
 ]
 

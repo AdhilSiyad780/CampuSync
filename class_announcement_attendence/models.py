@@ -64,3 +64,45 @@ class Announcement(models.Model):
 
     def __str__(self):
         return f"[{self.target_audience}] {self.title}"
+    
+
+
+# class_announcement_attendence/models.py
+from django.db import models
+from core.models import Tenant
+
+class Subject(models.Model):
+    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, related_name='subjects')
+    name = models.CharField(max_length=100)  # e.g., Mathematics
+    code = models.CharField(max_length=20)   # e.g., MATH101
+    description = models.TextField(blank=True, null=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        # Prevents two subjects in the same school from having the same code
+        unique_together = ('tenant', 'code')
+        ordering = ['name']
+
+    def __str__(self):
+        return f"{self.name} ({self.code})"
+    
+# models.py
+class TimeSlot(models.Model):
+    tenant = models.ForeignKey('core.Tenant', on_delete=models.CASCADE)
+    name = models.CharField(max_length=50) # e.g., "Period 1" or "Lunch"
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    is_break = models.BooleanField(default=False)
+    order = models.PositiveIntegerField() # To keep P1 before P2
+
+    class Meta:
+        ordering = ['order']
+        # One school shouldn't have two "Period 1"s
+        unique_together = ('tenant', 'order') 
+
+    def __str__(self):
+        return f"{self.name}: {self.start_time} - {self.end_time}"
+    
+
+    

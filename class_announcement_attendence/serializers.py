@@ -1,6 +1,6 @@
 from django.utils import timezone
 from rest_framework import serializers
-from .models import Announcement, SchoolClass
+from .models import Announcement, SchoolClass,Subject
 from core.models import User
 
 class ClassTeacherSerializer(serializers.ModelSerializer):
@@ -104,3 +104,17 @@ class AnnouncementSerializer(serializers.ModelSerializer):
         validated_data['tenant'] = request.user.tenant
         validated_data['author'] = request.user
         return super().create(validated_data)
+    
+
+class SubjectSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Subject
+        fields =  [
+            'id','name','code','description'
+        ]
+    def create(self,validated_data):
+        requets  = self.context.get('request')
+        validated_data['tenant'] = requets.user.tenant
+        return super().create(validated_data)
+    
+
