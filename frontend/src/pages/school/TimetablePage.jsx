@@ -36,7 +36,7 @@ export default function TimetablePage() {
     try {
       const [subjectsRes, timeSlotsRes, classesRes, teachersRes] = await Promise.all([
         api.get("subjects/"),
-        // api.get("time-slots/"),
+        api.get("timeslot/"),
         // api.get("classes/"),
         // api.get("teachers/available/")
       ]);
@@ -442,11 +442,11 @@ function TimeSlotsView({ timeSlots, setTimeSlots, setError, setSuccess }) {
 
     try {
       if (form.id) {
-        const res = await api.put(`time-slots/${form.id}/`, form);
+        const res = await api.put(`timeslot/${form.id}/`, form);
         setTimeSlots(timeSlots.map(s => s.id === form.id ? res.data : s).sort((a, b) => a.order - b.order));
         setSuccess("Time slot updated!");
       } else {
-        const res = await api.post("time-slots/", form);
+        const res = await api.post("timeslot/", form);
         setTimeSlots([...timeSlots, res.data].sort((a, b) => a.order - b.order));
         setSuccess("Time slot created!");
       }
@@ -462,7 +462,7 @@ function TimeSlotsView({ timeSlots, setTimeSlots, setError, setSuccess }) {
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this time slot?")) return;
     try {
-      await api.delete(`time-slots/${id}/`);
+      await api.delete(`timeslot/${id}/`);
       setTimeSlots(timeSlots.filter(s => s.id !== id));
       setSuccess("Time slot deleted!");
     } catch (err) {

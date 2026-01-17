@@ -5,7 +5,7 @@ from .views import (
     SchoolClassListCreateView,
     SchoolClassRetrieveUpdateDestroyView,
     AvailableTeachersView,
-    SubjectView
+    SubjectView,TimeSlotViewSet
 )
 from rest_framework.routers import DefaultRouter
 
@@ -13,6 +13,7 @@ router = DefaultRouter()
 
 
 router.register(r'subjects',SubjectView,basename='subject')
+router.register(r'timeslot',TimeSlotViewSet,basename='timeslot')
 
 urlpatterns = [
     path('classes/', SchoolClassListCreateView.as_view(), name='class-list-create'),

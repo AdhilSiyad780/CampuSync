@@ -5,10 +5,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
-from .models import Announcement, SchoolClass, Subject
-from .serializers import AnnouncementSerializer, SchoolClassSerializer,SubjectSerializer
+from .models import Announcement, SchoolClass, Subject,TimeSlot
+from .serializers import AnnouncementSerializer, SchoolClassSerializer,SubjectSerializer,TimeSlotSerializer
 from core.models import User
-from django.db.models import Q
+from django.db.models import Q  
 
 class SchoolClassListCreateView(generics.ListCreateAPIView):
     serializer_class = SchoolClassSerializer
@@ -126,3 +126,14 @@ class SubjectView(viewsets.ModelViewSet):
         return Subject.objects.filter(tenant=self.request.user.tenant).all()
     def perform_create(self,serilizer):
         serilizer.save(tenant = self.request.user.tenant)
+
+
+class TimeSlotViewSet(viewsets.ModelViewSet):
+    serializer_class = TimeSlotSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return TimeSlot.objects.filter(tenant=self.request.user.tenant)
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.user.tenant)
