@@ -1,7 +1,7 @@
 """
 Django settings for config project.
 """
-
+from datetime import timedelta
 from pathlib import Path
 import os
 from dotenv import load_dotenv
@@ -173,3 +173,15 @@ RAZORPAY_KEY_ID = os.getenv('RAZORPAY_KEY_ID',"")
 RAZORPAY_KEY_SECRET = os.getenv('RAZORPAY_KEY_SECRET',"")
 FRONTEND_URL = os.getenv('FRONTEND_URL','')
 
+
+SIMPLE_JWT = {
+    # The token used for every API request
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=30), 
+    
+    # The token used to generate new access tokens
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=60), 
+    
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+}
