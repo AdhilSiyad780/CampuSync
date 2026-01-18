@@ -15,7 +15,14 @@ class StudentProfile(models.Model):
         on_delete=models.CASCADE,
         related_name="student_profiles",
     )
-
+    
+    school_class = models.ForeignKey(
+        'class_announcement_attendence.SchoolClass',  # Use 'school.SchoolClass' or whatever your app is called
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='students'
+    )    
     admission_number = models.CharField(max_length=255, unique=True)
     admission_date = models.DateTimeField()
     blood_group = models.CharField(max_length=10, blank=True)

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Menu, X, Users, School, UserCog, BookOpen, Info, LayoutDashboard, LogOut, ChevronRight, CreditCard } from "lucide-react";
+import { Menu, X, Users, School, UserCog, BookOpen, Info, LayoutDashboard, LogOut, ChevronRight, CreditCard ,Clock, Megaphone, Settings, IndianRupee } from "lucide-react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import api from "../../api/axios";
 
@@ -132,8 +132,14 @@ export default function AdminDashboard() {
     { name: "Dashboard", icon: <LayoutDashboard size={20} />, path: "/dashboard" },
     { name: "Students", icon: <Users size={20} />, path: "/students" },
     { name: "Teachers", icon: <UserCog size={20} />, path: "/teachers" },
-    { name: "Parents", icon: <Users size={20} />, path: "/parents" },
-    { name: "School Details", icon: <School size={20} />, path: "/school" },
+    // --- NEW MODULES ---
+    { name: "Classes", icon: <School size={20} />, path: "/classes" },
+    { name: "Parents", icon: <Users size={20} />, path: "/parents" }, 
+    { name: "Timetable", icon: <Clock size={20} />, path: "/timetable" },
+    { name: "Announcements", icon: <Megaphone size={20} />, path: "/announcements" },
+    { name: "Finance", icon: <CreditCard size={20} />, path: "/finance" },
+    // -------------------
+    { name: "School Details", icon: <Settings size={20} />, path: "/school" },
   ];
 
   return (
@@ -216,21 +222,23 @@ export default function AdminDashboard() {
           )}
 
           {/* STATS */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              { label: "Total Students", value: counts.students, icon: <Users className="text-blue-600" />, color: "bg-blue-50" },
-              { label: "Total Teachers", value: counts.teachers, icon: <UserCog className="text-indigo-600" />, color: "bg-indigo-50" },
-              { label: "Administrative Staff", value: counts.staff, icon: <School className="text-emerald-600" />, color: "bg-emerald-50" },
-            ].map((stat, i) => (
-              <div key={i} className="bg-white p-6 rounded-2xl border border-slate-200 flex items-center justify-between hover:shadow-lg hover:shadow-slate-200/50 transition-all">
-                <div>
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{stat.label}</p>
-                  <p className="text-3xl font-black text-slate-800 mt-1">{stat.value || 0}</p>
-                </div>
-                <div className={`p-3 rounded-xl ${stat.color}`}>{stat.icon}</div>
-              </div>
-            ))}
-          </div>
+          {/* Updated STATS section */}
+<div className="grid grid-cols-1 md:grid-cols-4 gap-6"> {/* Changed to 4 columns */}
+  {[
+    { label: "Total Students", value: counts.students, icon: <Users className="text-blue-600" />, color: "bg-blue-50" },
+    { label: "Total Teachers", value: counts.teachers, icon: <UserCog className="text-indigo-600" />, color: "bg-indigo-50" },
+    { label: "Active Classes", value: counts.classes || 0, icon: <School className="text-emerald-600" />, color: "bg-emerald-50" },
+    { label: "Monthly Revenue", value: `₹${counts.revenue || 0}`, icon: <CreditCard className="text-amber-600" />, color: "bg-amber-50" },
+  ].map((stat, i) => (
+    <div key={i} className="bg-white p-6 rounded-2xl border border-slate-200 flex items-center justify-between hover:shadow-lg transition-all">
+      <div>
+        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{stat.label}</p>
+        <p className="text-2xl font-black text-slate-800 mt-1">{stat.value}</p>
+      </div>
+      <div className={`p-3 rounded-xl ${stat.color}`}>{stat.icon}</div>
+    </div>
+  ))}
+</div>
 
           {/* PLANS SECTION */}
           <div className="space-y-4">

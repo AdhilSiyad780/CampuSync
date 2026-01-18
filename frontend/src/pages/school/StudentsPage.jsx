@@ -9,13 +9,16 @@ import {
 import api from "../../api/axios";
 
 export default function StudentsPage() {
-  const [students, setStudents] = useState([]);
+  const [students, setStudents] = useState({results:[],count:0,next:null,previous:null});
+  const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [currentPage,setCurrentPage] = useState(1);
+  
 
   const [form, setForm] = useState({
     id: null,
@@ -27,8 +30,7 @@ export default function StudentsPage() {
     admission_number: "",
     admission_date: "",
     blood_group: "",
-    class_id: "",
-    section: "",
+    school_class: "", // Matches Django ForeignKey field name
     guardian_name: "",
     guardian_number: "",
     roll_number: "",
@@ -39,24 +41,31 @@ export default function StudentsPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    loadStudents();
+    loadData();
   }, []);
 
-  const loadStudents = async () => {
+  const loadData = async (page=1) => {
     setLoading(true);
     try {
-      const res = await api.get("students/");
-      setStudents(res.data || []);
+      const [studentsRes, classesRes] = await Promise.all([
+        api.get(`students/?page=${page}`),
+        api.get("classes/")
+      ]);
+      
+      setStudents(studentsRes.data || []);
+      setClasses(classesRes.data || []);
+      setCurrentPage(page)
     } catch (err) {
       if (err.response?.status === 401) {
         localStorage.removeItem("access");
         navigate("/login");
       }
-      setError("Failed to load student directory.");
+      setError("Failed to load data.");
     } finally {
       setLoading(false);
     }
   };
+  console.log(students)
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -67,7 +76,8 @@ export default function StudentsPage() {
     setForm({
       id: null, fullname: "", email: "", phone: "", DOB: "", gender: "",
       admission_number: "", admission_date: "", blood_group: "",
-      class_id: "", section: "", guardian_name: "", guardian_number: "",
+      school_class: "", // Updated
+      guardian_name: "", guardian_number: "",
       roll_number: "", student_contact: "", id_proof_url: "",
     });
   };
@@ -80,7 +90,11 @@ export default function StudentsPage() {
       admissionDateValue = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
     }
 
-    setForm({ ...student, admission_date: admissionDateValue });
+    setForm({ 
+      ...student, 
+      admission_date: admissionDateValue,
+      school_class: student.school_class || "" // Ensure we map the class ID correctly
+    });
     setIsFormOpen(true);
     setSelectedStudent(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -98,17 +112,27 @@ export default function StudentsPage() {
         await api.post("students/", form);
         setSuccess("New student enrolled.");
       }
-      await loadStudents();
+      await loadData();
       setIsFormOpen(false);
       resetLocalForm();
     } catch (err) {
-      setError("Failed to save student. Please verify required fields.");
+      console.error("Save error:", err.response?.data);
+      const serverErrors = err.response?.data;
+      const errorMsg = serverErrors?.email?.[0] || 
+                       serverErrors?.admission_number?.[0] || 
+                       serverErrors?.school_class?.[0] ||
+                       "Failed to save student. Please verify required fields.";
+      setError(errorMsg);
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>;
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-4 md:p-8">
@@ -150,7 +174,7 @@ export default function StudentsPage() {
                 <InputGroup label="Full Name *" name="fullname" value={form.fullname} onChange={handleChange} icon={<User size={18}/>} />
                 <InputGroup label="Email Address *" name="email" value={form.email} onChange={handleChange} icon={<Mail size={18}/>} type="email" />
                 <InputGroup label="Phone Number" name="phone" value={form.phone} onChange={handleChange} icon={<Phone size={18}/>} />
-                <InputGroup label="Date of Birth" name="DOB" value={form.DOB} onChange={handleChange} icon={<Calendar size={18}/>} type="date" />
+                <InputGroup label="Date of Birth *" name="DOB" value={form.DOB} onChange={handleChange} icon={<Calendar size={18}/>} type="date" />
                 <div className="space-y-2">
                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Gender</label>
                    <select name="gender" value={form.gender} onChange={handleChange} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/10 transition-all">
@@ -165,8 +189,30 @@ export default function StudentsPage() {
                 <h4 className="md:col-span-2 text-xs font-black text-blue-600 uppercase tracking-widest border-b pb-2 mt-4">Academic Details</h4>
                 <InputGroup label="Admission No *" name="admission_number" value={form.admission_number} onChange={handleChange} icon={<Hash size={18}/>} />
                 <InputGroup label="Admission Date" name="admission_date" value={form.admission_date} onChange={handleChange} icon={<Calendar size={18}/>} type="datetime-local" />
-                <InputGroup label="Class ID" name="class_id" value={form.class_id} onChange={handleChange} icon={<LayoutGrid size={18}/>} type="number" />
-                <InputGroup label="Section" name="section" value={form.section} onChange={handleChange} icon={<ShieldCheck size={18}/>} />
+                
+                {/* Class Dropdown */}
+                <div className="space-y-2">
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Class *</label>
+                   <div className="relative flex items-center">
+                      <div className="absolute left-4 text-slate-300">
+                        <LayoutGrid size={18}/>
+                      </div>
+                      <select 
+                        name="school_class" 
+                        value={form.school_class} 
+                        onChange={handleChange} 
+                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/10 transition-all"
+                      >
+                        <option value="">Select Class</option>
+                        {classes.map((cls) => (
+                          <option key={cls.id} value={cls.id}>
+                            {cls.class_name} - {cls.division}
+                          </option>
+                        ))}
+                      </select>
+                   </div>
+                </div>
+                
                 <InputGroup label="Roll Number" name="roll_number" value={form.roll_number} onChange={handleChange} icon={<Hash size={18}/>} type="number" />
                 <InputGroup label="ID Proof URL" name="id_proof_url" value={form.id_proof_url} onChange={handleChange} icon={<FileText size={18}/>} />
               </div>
@@ -179,8 +225,17 @@ export default function StudentsPage() {
                   <InputGroup label="Student Contact" name="student_contact" value={form.student_contact} onChange={handleChange} icon={<Phone size={18}/>} />
                 </div>
                 
-                <button type="submit" disabled={saving} className="w-full bg-[#1E293B] text-white py-4 rounded-2xl font-black shadow-xl flex items-center justify-center gap-3 hover:bg-slate-800 transition-all">
-                   {saving ? "Processing..." : <><Save size={18}/> {form.id ? "Update Profile" : "Enroll Student"}</>}
+                <button type="submit" disabled={saving} className="w-full bg-[#1E293B] text-white py-4 rounded-2xl font-black shadow-xl flex items-center justify-center gap-3 hover:bg-slate-800 transition-all disabled:opacity-60">
+                   {saving ? (
+                     <>
+                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                       Processing...
+                     </>
+                   ) : (
+                     <>
+                       <Save size={18}/> {form.id ? "Update Profile" : "Enroll Student"}
+                     </>
+                   )}
                 </button>
               </div>
             </form>
@@ -189,39 +244,74 @@ export default function StudentsPage() {
 
         {/* STUDENT GRID */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {students.map((s) => (
-            <div key={s.id} className="bg-white rounded-[2.5rem] border border-slate-200 p-6 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
-               <div className="flex justify-between items-start mb-6">
-                  <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-xl font-black">
-                    {s.fullname.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => { setSelectedStudent(s); }} className="p-2.5 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"><Eye size={18}/></button>
-                    <button onClick={() => handleEdit(s)} className="p-2.5 bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"><Edit size={18}/></button>
-                  </div>
-               </div>
-               
-               <h4 className="text-xl font-black text-slate-800 tracking-tight">{s.fullname}</h4>
-               <div className="flex flex-wrap gap-2 mt-2">
-                  <span className="px-2.5 py-1 bg-slate-100 text-slate-600 text-[9px] font-black rounded-lg uppercase">Roll: {s.roll_number || 'N/A'}</span>
-                  <span className="px-2.5 py-1 bg-blue-50 text-blue-600 text-[9px] font-black rounded-lg uppercase">Class: {s.class_id || '—'}{s.section || ''}</span>
-               </div>
-               
-               <div className="mt-6 pt-6 border-t border-slate-50 space-y-3">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-slate-400">Admission No</span>
-                    <span className="font-black text-slate-700">{s.admission_number}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-slate-400">Guardian</span>
-                    <span className="font-black text-slate-700">{s.guardian_name || '—'}</span>
-                  </div>
-               </div>
+          {students.length === 0 ? (
+            <div className="md:col-span-2 lg:col-span-3 p-12 text-center bg-white rounded-[2.5rem] border-2 border-dashed border-slate-200">
+              <GraduationCap size={48} className="mx-auto text-slate-300 mb-4" />
+              <h3 className="text-lg font-bold text-slate-600 mb-2">No Students Yet</h3>
+              <p className="text-sm text-slate-400">Enroll your first student using the form above</p>
             </div>
-          ))}
+          ) : (
+            students.results.map((s) => (
+              <div key={s.id} className="bg-white rounded-[2.5rem] border border-slate-200 p-6 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
+                 <div className="flex justify-between items-start mb-6">
+                    <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-xl font-black">
+                      {s.fullname.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => { setSelectedStudent(s); }} className="p-2.5 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"><Eye size={18}/></button>
+                      <button onClick={() => handleEdit(s)} className="p-2.5 bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"><Edit size={18}/></button>
+                    </div>
+                 </div>
+                 
+                 <h4 className="text-xl font-black text-slate-800 tracking-tight">{s.fullname}</h4>
+                 <div className="flex flex-wrap gap-2 mt-2">
+                    <span className="px-2.5 py-1 bg-slate-100 text-slate-600 text-[9px] font-black rounded-lg uppercase">Roll: {s.roll_number || 'N/A'}</span>
+                    <span className="px-2.5 py-1 bg-blue-50 text-blue-600 text-[9px] font-black rounded-lg uppercase">
+                      {s.class_name ? `${s.class_name} - ${s.division}` : 'No Class'}
+                    </span>
+                 </div>
+                 
+                 <div className="mt-6 pt-6 border-t border-slate-50 space-y-3">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-slate-400">Admission No</span>
+                      <span className="font-black text-slate-700">{s.admission_number}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-slate-400">Guardian</span>
+                      <span className="font-black text-slate-700">{s.guardian_name || '—'}</span>
+                    </div>
+                 </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
-
+      {/* PAGINATION SECTION */}
+                         {/* PAGINATION SECTION */}
+<div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 mt-8">
+  <p className="text-xs font-bold text-slate-500">
+    Showing {students.results.length} of {students.count} students
+  </p>
+  <div className="flex gap-2">
+    <button
+      disabled={!students.previous}
+      onClick={() => loadData(currentPage - 1)}
+      className="px-4 py-2 bg-slate-100 rounded-xl text-xs font-bold disabled:opacity-50 hover:bg-slate-200 transition-all"
+    >
+      Previous
+    </button>
+    <div className="px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-xs font-black">
+      {currentPage}
+    </div>
+    <button
+      disabled={!students.next}
+      onClick={() => loadData(currentPage + 1)}
+      className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold disabled:opacity-50 hover:bg-blue-700 transition-all shadow-lg shadow-blue-200"
+    >
+      Next
+    </button>
+  </div>
+</div>
       {/* DETAIL MODAL */}
       {selectedStudent && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4" onClick={() => setSelectedStudent(null)}>
@@ -240,7 +330,7 @@ export default function StudentsPage() {
 
             <div className="grid grid-cols-2 md:grid-cols-3 gap-8 mb-10 text-sm">
                 <DetailItem label="Roll Number" value={selectedStudent.roll_number} icon={<Hash size={16}/>} />
-                <DetailItem label="Class & Sec" value={`${selectedStudent.class_id || ''} ${selectedStudent.section || ''}`} icon={<LayoutGrid size={16}/>} />
+                <DetailItem label="Class" value={selectedStudent.class_name ? `${selectedStudent.class_name} - ${selectedStudent.division}` : '—'} icon={<LayoutGrid size={16}/>} />
                 <DetailItem label="Admission No" value={selectedStudent.admission_number} icon={<ShieldCheck size={16}/>} />
                 <DetailItem label="Guardian" value={selectedStudent.guardian_name} icon={<User size={16}/>} />
                 <DetailItem label="Blood Group" value={selectedStudent.blood_group} icon={<Droplets size={16}/>} />

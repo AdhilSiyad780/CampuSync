@@ -3,6 +3,13 @@ from rest_framework import generics, permissions
 from .models import StudentProfile,TeacherProfile
 from .serializers import StudentProfileSerializer,TeacherSerializer
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.pagination import PageNumberPagination
+
+
+class PaginationProperties(PageNumberPagination):
+    page_size = 3
+    page_size_query_param = 'page_size'
+    max_page_size = 100
 
 
 class IsAdminUserType(permissions.BasePermission):
@@ -18,6 +25,7 @@ class IsAdminUserType(permissions.BasePermission):
 class StudentProfileListCreateView(generics.ListCreateAPIView):
     serializer_class = StudentProfileSerializer
     permission_classes = [permissions.IsAuthenticated, IsAdminUserType]
+    pagination_class = PaginationProperties
 
     def get_queryset(self):
         user = self.request.user
@@ -45,6 +53,7 @@ class StudentProfileRetrieveUpdateDestroyView(generics.RetrieveUpdateDestroyAPIV
 class TeacherListCreateView(generics.ListCreateAPIView):
     serializer_class = TeacherSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = PaginationProperties
 
     def get_queryset(self):
         user = self.request.user
@@ -89,6 +98,7 @@ from .serializers import ParentSerializer  # adjust import
 class ParentListCreateView(generics.ListCreateAPIView):
     serializer_class = ParentSerializer
     permission_classes = [IsAuthenticated]
+    pagination_class = PaginationProperties
 
     def get_queryset(self):
         user = self.request.user

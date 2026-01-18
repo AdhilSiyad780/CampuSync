@@ -9,13 +9,14 @@ import {
 import api from "../../api/axios";
 
 export default function TeachersPage() {
-  const [teachers, setTeachers] = useState([]);
+  const [teachers, setTeachers] = useState({results:[],count:0,next:null,previous:null});
   const [selectedTeacher, setSelectedTeacher] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [currentPage,setCurrentPage] = useState(1);
 
   const [form, setForm] = useState({
     id: null,
@@ -37,7 +38,7 @@ export default function TeachersPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    loadTeachers();
+    loadTeachers(1);
   }, []);
 
   const resetLocalForm = () => {
@@ -49,11 +50,12 @@ export default function TeachersPage() {
     setError(""); setSuccess("");
   };
 
-  const loadTeachers = async () => {
+  const loadTeachers = async (page) => {
     setLoading(true);
     try {
-      const res = await api.get("teachers/");
+      const res = await api.get(`teachers/?page=${page}`);
       setTeachers(res.data || []);
+      setCurrentPage(page)
     } catch (err) {
       if (err.response?.status === 401) navigate("/login");
       setError("Failed to sync faculty directory.");
@@ -61,7 +63,7 @@ export default function TeachersPage() {
       setLoading(false);
     }
   };
-
+  
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
     setError(""); setSuccess("");
@@ -196,7 +198,7 @@ export default function TeachersPage() {
 
         {/* FACULTY LIST (GRID STYLE) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {teachers.map((t) => (
+          {teachers.results.map((t) => (
             <div key={t.id} className="bg-white rounded-[2.5rem] border border-slate-200 p-6 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
                <div className="flex justify-between items-start mb-6">
                   <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-xl font-black">
@@ -220,6 +222,42 @@ export default function TeachersPage() {
           ))}
         </div>
       </div>
+      
+      {/* PAGINATION CONTROLS */}
+<div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 mt-8 shadow-sm">
+  <p className="text-xs font-bold text-slate-500">
+    Showing {teachers.results.length} of {teachers.count} faculty members
+  </p>
+  
+  <div className="flex items-center gap-3">
+    <button
+      disabled={!teachers.previous}
+      onClick={() => loadTeachers(currentPage - 1)}
+      className="p-2 bg-slate-100 rounded-xl text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-200 transition-all"
+      title="Previous Page"
+    >
+      <ChevronRight size={18} className="rotate-180" />
+    </button>
+
+    <div className="flex items-center gap-1">
+      <span className="text-xs font-black text-blue-600 bg-blue-50 px-3 py-2 rounded-lg">
+        {currentPage}
+      </span>
+      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+        of {Math.ceil(teachers.count / 10) || 1}
+      </span>
+    </div>
+
+    <button
+      disabled={!teachers.next}
+      onClick={() => loadTeachers(currentPage + 1)}
+      className="p-2 bg-blue-600 rounded-xl text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition-all shadow-lg shadow-blue-200"
+      title="Next Page"
+    >
+      <ChevronRight size={18} />
+    </button>
+  </div>
+</div>
 
       {/* DETAILED VIEW MODAL */}
       {selectedTeacher && (

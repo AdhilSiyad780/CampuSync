@@ -10,11 +10,13 @@ from .serializers import (AnnouncementSerializer, SchoolClassSerializer,SubjectS
                           TimeSlotSerializer,TimeTableEntrySerializers)
 from core.models import User
 from django.db.models import Q  
+from members.views import PaginationProperties
+
 
 class SchoolClassListCreateView(generics.ListCreateAPIView):
     serializer_class = SchoolClassSerializer
     permission_classes = [IsAuthenticated]
-    
+    pagination_class = PaginationProperties
     def get_queryset(self):
         user = self.request.user
         tenant = getattr(user, 'tenant', None)

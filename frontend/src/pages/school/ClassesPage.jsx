@@ -8,7 +8,7 @@ import { useNavigate } from "react-router-dom";
 
 
 export default function ClassesPage() {
-  const [classes, setClasses] = useState([]);
+  const [classes, setClasses] = useState({ results: [], count: 0, next: null, previous: null });
   const [teachers, setTeachers] = useState([]);
   const [selectedClass, setSelectedClass] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -17,6 +17,8 @@ export default function ClassesPage() {
   const [success, setSuccess] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [showDeleteModal, setShowDeleteModal] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+
 
   const navigate = useNavigate();
   const valid_entry = localStorage.getItem('access')
@@ -34,26 +36,27 @@ export default function ClassesPage() {
   });
 
   useEffect(() => {
-    loadData();
+    loadData(1);
   }, []);
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const [classRes, teacherRes] = await Promise.all([
-        api.get("classes/"),
-        api.get("teachers/available/")
-      ]);
-      setClasses(classRes.data || []);
-      setTeachers(teacherRes.data || []);
-    } catch (err) {
-      console.error("Load error:", err);
-      setError("Failed to load data");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  
+const loadData = async (page = 1) => {
+  setLoading(true);
+  try {
+    const [classRes, teacherRes] = await Promise.all([
+      api.get(`classes/?page=${page}`),
+      api.get("teachers/available/")
+    ]);
+    setClasses(classRes.data || { results: [], count: 0, next: null, previous: null });
+    setTeachers(teacherRes.data || []);
+    setCurrentPage(page);
+  } catch (err) {
+    console.error("Load error:", err);
+    setError("Failed to load data");
+  } finally {
+    setLoading(false);
+  }
+};
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm({ ...form, [name]: value });
@@ -163,11 +166,22 @@ export default function ClassesPage() {
     }
   };
 
-  const filteredClasses = classes.filter(c =>
+  const filteredClasses = classes.results.filter(c =>
     c.class_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.division.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.academic_year.includes(searchTerm)
   );
+  const handleNextPage = () => {
+  if (classes.next) {
+    loadData(currentPage + 1);
+  }
+};
+
+const handlePrevPage = () => {
+  if (classes.previous) {
+    loadData(currentPage - 1);
+  }
+};
 
   if (loading) {
     return (
@@ -393,7 +407,29 @@ export default function ClassesPage() {
           )}
         </div>
       </div>
-
+      {!searchTerm && classes.results.length > 0 && (
+  <div className="flex justify-center items-center gap-4 mt-8">
+    <button
+      onClick={handlePrevPage}
+      disabled={!classes.previous}
+      className="px-6 py-3 bg-white border-2 border-slate-200 text-slate-700 font-bold rounded-2xl hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+    >
+      Previous
+    </button>
+    
+    <span className="text-sm font-bold text-slate-600">
+      Page {currentPage} of {Math.ceil(classes.count / 3)}
+    </span>
+    
+    <button
+      onClick={handleNextPage}
+      disabled={!classes.next}
+      className="px-6 py-3 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+    >
+      Next
+    </button>
+  </div>
+)}
       {/* VIEW MODAL */}
       {selectedClass && (
         <div

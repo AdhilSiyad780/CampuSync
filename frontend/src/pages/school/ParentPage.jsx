@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { 
   User, Mail, Phone, Calendar, Briefcase, 
   Users, Plus, Edit, Eye, Save, X, ChevronRight, 
-  PhoneCall, GraduationCap, ShieldCheck, Heart, Trash2
+  PhoneCall, GraduationCap, ShieldCheck, Heart, Trash2, Search
 } from "lucide-react";
 import api from "../../api/axios";
 
@@ -15,7 +15,7 @@ const RELATION_OPTIONS = [
 ];
 
 export default function ParentsPage() {
-  const [parents, setParents] = useState([]);
+  const [parents, setParents] = useState({ results: [], count: 0, next: null, previous: null });
   const [students, setStudents] = useState([]);
   const [selectedParent, setSelectedParent] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -23,6 +23,8 @@ export default function ParentsPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const [form, setForm] = useState({
     id: null,
@@ -39,23 +41,38 @@ export default function ParentsPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    init();
-  }, [navigate]);
+    init(1);
+  }, []);
 
-  const init = async () => {
+  const init = async (page = 1) => {
     setLoading(true);
     try {
       const [studRes, parRes] = await Promise.all([
         api.get("students/"),
-        api.get("parents/")
+        api.get(`parents/?page=${page}`)
       ]);
-      setStudents(studRes.data || []);
-      setParents(parRes.data || []);
+      setStudents(studRes.data?.results || studRes.data || []);
+      setParents(parRes.data || { results: [], count: 0, next: null, previous: null });
+      setCurrentPage(page);
     } catch (err) {
       if (err.response?.status === 401) navigate("/login");
       setError("Failed to synchronize directory data.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (parents.next) {
+      init(currentPage + 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (parents.previous) {
+      init(currentPage - 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -129,8 +146,7 @@ export default function ParentsPage() {
         await api.post("parents/", payload);
         setSuccess("New parent registered and credentials sent.");
       }
-      const res = await api.get("parents/");
-      setParents(res.data);
+      await init(currentPage);
       setIsFormOpen(false);
       resetLocalForm();
     } catch (err) {
@@ -144,6 +160,14 @@ export default function ParentsPage() {
   const resetLocalForm = () => {
     setForm({ id: null, fullname: "", email: "", phone: "", contact_number: "", whatsapp_number: "", occupation: "", DOB: '', relations: [] });
   };
+
+  // Filter parents based on search term
+  const filteredParents = parents.results.filter(p =>
+    p.fullname?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.contact_number?.includes(searchTerm) ||
+    p.occupation?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div></div>;
 
@@ -183,8 +207,8 @@ export default function ParentsPage() {
             
             <form onSubmit={handleSubmit} className="p-8 grid grid-cols-1 lg:grid-cols-12 gap-10">
               <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-                <InputGroup label="Full Name" name="fullname" value={form.fullname} onChange={handleChange} icon={<User size={18}/>} placeholder="John Doe" />
-                <InputGroup label="Email Address" name="email" value={form.email} onChange={handleChange} icon={<Mail size={18}/>} type="email" placeholder="john@example.com" />
+                <InputGroup label="Full Name" name="fullname" value={form.fullname} onChange={handleChange} icon={<User size={18}/>} placeholder="John Doe" required />
+                <InputGroup label="Email Address" name="email" value={form.email} onChange={handleChange} icon={<Mail size={18}/>} type="email" placeholder="john@example.com" required />
                 <InputGroup label="Date of Birth" name="DOB" value={form.DOB} onChange={handleChange} icon={<Calendar size={18}/>} type="date" />
                 <InputGroup label="Phone (Login)" name="phone" value={form.phone} onChange={handleChange} icon={<Phone size={18}/>} />
                 <InputGroup label="Primary Contact" name="contact_number" value={form.contact_number} onChange={handleChange} icon={<PhoneCall size={18}/>} />
@@ -221,57 +245,138 @@ export default function ParentsPage() {
                     )
                   })}
                 </div>
-                <button type="submit" disabled={saving} className="w-full bg-[#1E293B] text-white py-4 rounded-2xl font-black shadow-xl flex items-center justify-center gap-3 hover:bg-slate-800">
-                   {saving ? "Saving..." : <><Save size={18}/> {form.id ? "Update Record" : "Save Parent"}</>}
+                <button type="submit" disabled={saving} className="w-full bg-[#1E293B] text-white py-4 rounded-2xl font-black shadow-xl flex items-center justify-center gap-3 hover:bg-slate-800 disabled:opacity-60 transition-all">
+                   {saving ? (
+                     <>
+                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                       Saving...
+                     </>
+                   ) : (
+                     <>
+                       <Save size={18}/> {form.id ? "Update Record" : "Save Parent"}
+                     </>
+                   )}
                 </button>
               </div>
             </form>
           </div>
         )}
 
+        {/* SEARCH BAR */}
+        <div className="flex items-center gap-4">
+          <div className="relative flex-1">
+            <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"/>
+            <input
+              type="text"
+              placeholder="Search by name, email, contact, or occupation..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-white border border-slate-200 rounded-2xl pl-12 pr-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+            />
+          </div>
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm("")}
+              className="px-4 py-3 bg-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-200 transition-all"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+
+        {/* RESULTS INFO */}
+        {!searchTerm && (
+          <div className="flex items-center justify-between text-sm">
+            <p className="text-slate-600 font-bold">
+              Showing {parents.results.length} of {parents.count} parents
+            </p>
+            <p className="text-slate-400">
+              Page {currentPage}
+            </p>
+          </div>
+        )}
+
         {/* LIST SECTION - GRID STYLE */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {parents.map((p) => (
-            <div key={p.id} className="bg-white rounded-[2.5rem] border border-slate-200 p-6 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
-               <div className="flex justify-between items-start mb-6">
-                  <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-xl font-black">
-                    {p.fullname.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => setSelectedParent(p)} className="p-2.5 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"><Eye size={18}/></button>
-                    <button onClick={() => handleEdit(p)} className="p-2.5 bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"><Edit size={18}/></button>
-                    <button className="p-2.5 bg-slate-50 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"><Trash2 size={18}/></button>
-                  </div>
-               </div>
-               
-               <h4 className="text-xl font-black text-slate-800 tracking-tight">{p.fullname}</h4>
-               <p className="text-sm font-medium text-slate-500 flex items-center gap-2 mt-1 truncate"><Mail size={14} className="text-slate-300"/> {p.email}</p>
-               
-               <div className="mt-6 pt-6 border-t border-slate-50 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Linked Children</span>
-                    <span className="px-2.5 py-1 bg-indigo-50 text-indigo-600 text-[10px] font-black rounded-lg uppercase">{p.relations?.length || 0} Students</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {p.relations?.map(r => (
-                      <div key={r.id} className="flex items-center gap-1.5 px-3 py-1 bg-slate-50 border border-slate-100 rounded-full">
-                        <span className="text-[10px] font-bold text-slate-600">{r.student_name}</span>
-                        {r.is_primary && <ShieldCheck size={10} className="text-emerald-500"/>}
-                      </div>
-                    ))}
-                  </div>
-               </div>
+          {filteredParents.length === 0 ? (
+            <div className="md:col-span-2 lg:col-span-3 p-12 text-center bg-white rounded-[2.5rem] border-2 border-dashed border-slate-200">
+              <Users size={48} className="mx-auto text-slate-300 mb-4"/>
+              <h3 className="text-lg font-bold text-slate-600 mb-2">
+                {searchTerm ? "No parents found" : "No parents registered yet"}
+              </h3>
+              <p className="text-sm text-slate-400">
+                {searchTerm ? "Try a different search term" : "Register your first parent using the form above"}
+              </p>
             </div>
-          ))}
+          ) : (
+            filteredParents.map((p) => (
+              <div key={p.id} className="bg-white rounded-[2.5rem] border border-slate-200 p-6 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
+                 <div className="flex justify-between items-start mb-6">
+                    <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-xl font-black">
+                      {p.fullname.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => setSelectedParent(p)} className="p-2.5 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"><Eye size={18}/></button>
+                      <button onClick={() => handleEdit(p)} className="p-2.5 bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"><Edit size={18}/></button>
+                    </div>
+                 </div>
+                 
+                 <h4 className="text-xl font-black text-slate-800 tracking-tight">{p.fullname}</h4>
+                 <p className="text-sm font-medium text-slate-500 flex items-center gap-2 mt-1 truncate"><Mail size={14} className="text-slate-300"/> {p.email}</p>
+                 
+                 <div className="mt-6 pt-6 border-t border-slate-50 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Linked Children</span>
+                      <span className="px-2.5 py-1 bg-indigo-50 text-indigo-600 text-[10px] font-black rounded-lg uppercase">{p.relations?.length || 0} Students</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {p.relations?.map(r => (
+                        <div key={r.id} className="flex items-center gap-1.5 px-3 py-1 bg-slate-50 border border-slate-100 rounded-full">
+                          <span className="text-[10px] font-bold text-slate-600">{r.student_name}</span>
+                          {r.is_primary && <ShieldCheck size={10} className="text-emerald-500"/>}
+                        </div>
+                      ))}
+                    </div>
+                 </div>
+              </div>
+            ))
+          )}
         </div>
+
+        {/* PAGINATION CONTROLS */}
+        {!searchTerm && parents.results.length > 0 && (
+          <div className="flex justify-center items-center gap-4 mt-8 pb-8">
+            <button
+              onClick={handlePrevPage}
+              disabled={!parents.previous}
+              className="px-6 py-3 bg-white border-2 border-slate-200 text-slate-700 font-bold rounded-2xl hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+            >
+              <ChevronRight size={18} className="rotate-180" />
+              Previous
+            </button>
+            
+            <div className="px-6 py-3 bg-blue-50 text-blue-600 font-black rounded-2xl">
+              Page {currentPage} of {Math.ceil(parents.count / 3)}
+            </div>
+            
+            <button
+              onClick={handleNextPage}
+              disabled={!parents.next}
+              className="px-6 py-3 bg-blue-600 text-white font-bold rounded-2xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+            >
+              Next
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* DETAIL MODAL (MODERN VIEW) */}
       {selectedParent && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4" onClick={() => setSelectedParent(null)}>
-          <div className="bg-white rounded-[3rem] w-full max-w-2xl p-10 relative overflow-hidden" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-[3rem] w-full max-w-2xl p-10 relative overflow-hidden animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
             <div className="absolute top-0 right-0 p-10 opacity-5"><Users size={120}/></div>
-            <button onClick={() => setSelectedParent(null)} className="absolute top-8 right-8 text-slate-400 hover:text-red-500"><X size={24}/></button>
+            <button onClick={() => setSelectedParent(null)} className="absolute top-8 right-8 text-slate-400 hover:text-red-500 transition-colors"><X size={24}/></button>
             
             <h2 className="text-3xl font-black text-slate-800 mb-8">Parent Profile</h2>
             <div className="grid grid-cols-2 gap-8 mb-10">
@@ -286,16 +391,35 @@ export default function ParentsPage() {
             <div className="bg-slate-50 rounded-[2rem] p-6 border border-slate-100">
                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><GraduationCap size={14}/> Academic Relations</h4>
                <div className="space-y-3">
-                  {selectedParent.relations?.map(rel => (
-                    <div key={rel.id} className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm">
-                      <span className="text-sm font-bold text-slate-800">{rel.student_name}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-black text-blue-600 uppercase bg-blue-50 px-3 py-1 rounded-lg">{rel.relation_type}</span>
-                        {rel.is_primary && <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-lg">Primary</span>}
+                  {selectedParent.relations?.length > 0 ? (
+                    selectedParent.relations.map(rel => (
+                      <div key={rel.id} className="flex items-center justify-between bg-white p-4 rounded-2xl shadow-sm">
+                        <span className="text-sm font-bold text-slate-800">{rel.student_name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-black text-blue-600 uppercase bg-blue-50 px-3 py-1 rounded-lg">{rel.relation_type}</span>
+                          {rel.is_primary && <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-lg">Primary</span>}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    <p className="text-sm text-slate-400 text-center py-4">No students linked</p>
+                  )}
                </div>
+            </div>
+
+            <div className="flex gap-4 mt-8">
+              <button 
+                onClick={() => handleEdit(selectedParent)} 
+                className="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-black shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+              >
+                <Edit size={18}/> Edit Profile
+              </button>
+              <button 
+                onClick={() => setSelectedParent(null)} 
+                className="flex-1 bg-slate-100 text-slate-600 py-4 rounded-2xl font-black hover:bg-slate-200 transition-all"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

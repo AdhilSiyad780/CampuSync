@@ -26,6 +26,10 @@ class StudentProfileSerializer(serializers.ModelSerializer):
     DOB = serializers.DateField(source="user.DOB", allow_null=True, required=False)
     gender = serializers.CharField(source="user.gender", allow_blank=True, required=False)
 
+    class_name = serializers.CharField(source="school_class.class_name", read_only=True)
+    division = serializers.CharField(source="school_class.division", read_only=True)
+    print(class_name,division)
+
     class Meta:
         model = StudentProfile
         fields = [
@@ -40,8 +44,9 @@ class StudentProfileSerializer(serializers.ModelSerializer):
             "admission_number",
             "admission_date",
             "blood_group",
-            "class_id",
-            "section",
+            "school_class",
+            "class_name",      
+            "division",
             "guardian_name",
             "guardian_number",
             "roll_number",
