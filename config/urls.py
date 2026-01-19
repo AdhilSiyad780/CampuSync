@@ -11,6 +11,7 @@ urlpatterns = [
     path('api/',include('members.urls')),
     path('api/',include('profiles.urls')),
     path('api/',include('class_announcement_attendence.urls')),
+    path('api/',include('assignment.urls'))
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

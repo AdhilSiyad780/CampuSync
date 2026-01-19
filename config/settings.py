@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "subscription",
     'members',
     'class_announcement_attendence',
+    'assignment',
     
 ]
 
