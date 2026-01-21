@@ -41,6 +41,8 @@ INSTALLED_APPS = [
     'members',
     'class_announcement_attendence',
     'assignment',
+    'attendence',
+    
     
 ]
 

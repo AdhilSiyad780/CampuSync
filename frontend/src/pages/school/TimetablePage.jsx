@@ -709,7 +709,7 @@ function TimetableView({
       <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm p-8">
         <h3 className="text-xl font-black text-slate-800 mb-6">Select Class</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {classes.map((cls) => (
+          {classes.results.map((cls) => (
             <button
               key={cls.id}
               onClick={() => handleClassSelect(cls.id)}

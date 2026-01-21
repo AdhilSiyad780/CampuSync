@@ -204,7 +204,7 @@ export default function StudentsPage() {
                         className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/10 transition-all"
                       >
                         <option value="">Select Class</option>
-                        {classes.map((cls) => (
+                        {classes.results.map((cls) => (
                           <option key={cls.id} value={cls.id}>
                             {cls.class_name} - {cls.division}
                           </option>
