@@ -29,6 +29,7 @@ import StudentDashboard from "./pages/students/StudentDashboard.jsx";
 import StudentProfile from "./pages/students/StudentProfile.jsx";
 import StudentAssignmentsPage from "./pages/students/StudentAssignmentsPage.jsx";
 import StudentAttendancePage from "./pages/students/StudentAttendencePage.jsx";
+import StudentExamsPage from "./pages/students/StudentExamPage.jsx";
 
 //.............TEACHER PAGEs...............
 import TeacherLogin from "./pages/teacher/TeacherLogin.jsx";
@@ -36,6 +37,7 @@ import TeacherDashboard from './pages/teacher/TeacherDashboard.jsx'
 import TeacherProfile from "./pages/teacher/TeacherProfile.jsx";
 import TeacherAssignmentsPage from "./pages/teacher/TeacherAssignmentsPage.jsx";
 import TeacherAttendancePage from "./pages/teacher/TeacherAttendencePage.jsx";
+import TeacherExamsPage from "./pages/teacher/TeacherExamsPage.jsx";
 
 
 //============Parent Login==============================
@@ -81,12 +83,15 @@ export default function App() {
           <Route path="/student/profile" element={<StudentProfile />} />
          <Route path="/student/assignment" element={<StudentAssignmentsPage />} />
           <Route path="/student/attendence" element={<StudentAttendancePage />} />
+           <Route path="/student/exams" element={<StudentExamsPage />} />
+
         {/* ===================== TEACHER AUTH ROUTE ===================== */}
         <Route path="/teacher/login" element={<TeacherLogin />} />
          <Route path="/teacher/Dashboard" element={<TeacherDashboard />} /> 
           <Route path="/teacher/profile" element={<TeacherProfile />} /> 
             <Route path="/teacher/assignment" element={<TeacherAssignmentsPage />} /> 
             <Route path="/teacher/attendence" element={<TeacherAttendancePage />} />
+            <Route path="/teacher/exam" element={<TeacherExamsPage />} />
 
          {/* ===================== PARENT AUTH ROUTE ===================== */}
         <Route path="/parent/login" element={<ParentLogin />} />

@@ -12,12 +12,13 @@ from .serializers import (
 
 class TeacherClassesForAttendanceView(APIView):
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get(self, request):
         user = request.user
+        print(user.user_type)
         tenant = user.tenant
         
-        if user.user_type not in ['teacher', 'admin']:
+        if user.user_type != 'teacher':
             return Response(
                 {"error": "Only teachers and admins can access this"},
                 status=status.HTTP_403_FORBIDDEN

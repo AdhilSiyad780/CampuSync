@@ -37,7 +37,7 @@ class SchoolClassSerializer(serializers.ModelSerializer):
     
     def get_student_count(self, obj):
         """Count students enrolled in this class"""
-        return obj.tenant.student_profiles.filter(class_id=obj.id).count()
+        return obj.tenant.student_profiles.filter(id=obj.id).count()
     
     def validate(self, attrs):
         """Custom validation"""
@@ -107,6 +107,7 @@ class AnnouncementSerializer(serializers.ModelSerializer):
     
 
 class SubjectSerializer(serializers.ModelSerializer):
+    
     class Meta:
         model = Subject
         fields =  [
@@ -174,3 +175,42 @@ class TimeTableEntrySerializers(serializers.ModelSerializer):
         request = self.context.get('request')
         validated_data['tenant'] = request.user.tenant  # Fixed typo: 'tenent' -> 'tenant'
         return super().create(validated_data)
+    
+
+class SubjectSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = Subject
+        fields =  [
+            'id','name','code','description'
+        ]
+class SchoolClassAllSerializer(serializers.ModelSerializer):
+    class_teacher_details = ClassTeacherSerializer(source='class_teacher', read_only=True)
+    class_teacher_id = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.filter(user_type='teacher'),
+        source='class_teacher',
+        required=False,
+        allow_null=True
+    )
+    student_count = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = SchoolClass
+        fields = [
+            'id', 
+            'class_name', 
+            'division', 
+            'academic_year',
+            'capacity',
+            'class_teacher_id',
+            'class_teacher_details',
+            'student_count',
+            'created_at',
+            'updated_at'
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+    
+    def get_student_count(self, obj):
+        """Count students enrolled in this class"""
+        return obj.tenant.student_profiles.filter(id=obj.id).count()
+    

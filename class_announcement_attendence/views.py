@@ -178,3 +178,32 @@ class TimetableGridView(APIView):
             "class_name": f"{target_class.class_name} - {target_class.division}",
             "grid": grid_data
         })
+    
+    
+class SchoolClassAllView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        tenant = getattr(user, 'tenant', None)
+        if not tenant:
+            return Response([], status=status.HTTP_200_OK)
+            
+        # 1. Get the raw QuerySet
+        queryset = SchoolClass.objects.filter(tenant=tenant).order_by('-created_at')
+        
+        # 2. Pass it through the Serializer (many=True is required for lists)
+        serializer = SchoolClassSerializer(queryset, many=True)
+        
+        # 3. Return the Response object containing serialized data
+        return Response(serializer.data)
+
+class SubjectAllView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        queryset = Subject.objects.filter(tenant=request.user.tenant).all()
+        
+        # Serialize and wrap in Response
+        serializer = SubjectSerializer(queryset, many=True)
+        return Response(serializer.data)

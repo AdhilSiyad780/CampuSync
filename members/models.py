@@ -1,7 +1,6 @@
 # students/models.py
 from django.db import models
 from core.models import User, Tenant   # adjust import if Tenant is elsewhere
-from django.db import models
 
 
 class StudentProfile(models.Model):
@@ -28,7 +27,6 @@ class StudentProfile(models.Model):
     blood_group = models.CharField(max_length=10, blank=True)
 
     # Ideally this should be a FK to a Class/Section model, but for now keep simple:
-    class_id = models.IntegerField()                      # placeholder
     section = models.CharField(max_length=50, blank=True)
 
     guardian_name = models.CharField(max_length=255)

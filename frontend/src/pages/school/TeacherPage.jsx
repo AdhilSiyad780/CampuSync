@@ -108,6 +108,7 @@ export default function TeachersPage() {
       resetLocalForm();
     } catch (err) {
       setError("Failed to save changes. Please verify all required fields.");
+      console.log(err)
     } finally {
       setSaving(false);
     }

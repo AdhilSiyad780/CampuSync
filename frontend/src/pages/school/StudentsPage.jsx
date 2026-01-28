@@ -65,7 +65,6 @@ export default function StudentsPage() {
       setLoading(false);
     }
   };
-  console.log(students)
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -103,7 +102,9 @@ export default function StudentsPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true); setError(""); setSuccess("");
+    console.log("Payload being sent to Django:", form);
 
+    
     try {
       if (form.id) {
         await api.put(`students/${form.id}/`, form);

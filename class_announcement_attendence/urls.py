@@ -6,7 +6,9 @@ from .views import (
     SchoolClassRetrieveUpdateDestroyView,
     AvailableTeachersView,
     SubjectView,TimeSlotViewSet,TableEntryView,
-    TimetableGridView
+    TimetableGridView,
+    SubjectAllView,
+    SchoolClassAllView
 )
 from rest_framework.routers import DefaultRouter
 
@@ -27,6 +29,10 @@ urlpatterns = [
     path('announcements/<int:pk>/', AnnouncementDetailView.as_view(), name='announcement-detail'),
     path('timetable/grid/<int:class_id>/', TimetableGridView.as_view(), name='timetable-grid'),
 
+
+    # ALL SUBJECTS AND CLASS TO AVOID PAGINATION
+    path('subject-all/', SubjectAllView.as_view()),
+    path('class-all/', SchoolClassAllView.as_view()),
 
     path('',include(router.urls))
 ]
