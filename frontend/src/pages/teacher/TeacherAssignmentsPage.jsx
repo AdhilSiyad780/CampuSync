@@ -4,6 +4,7 @@ import {
   Users, BookOpen, Paperclip, Save, X, ChevronRight 
 } from "lucide-react";
 import api from "../../api/axios";
+import { useNavigate } from "react-router-dom";
 
 export default function TeacherAssignmentsPage() {
   const [assignments, setAssignments] = useState([]);
@@ -29,6 +30,13 @@ export default function TeacherAssignmentsPage() {
     total_marks: 100,
     attachment: null,
   });
+
+  const navigate = useNavigate();
+
+  const user = JSON.parse(localStorage.getItem('user'))
+  if (user?.user_type !== 'teacher') {
+     navigate('/teacher/login')
+  }
 
   useEffect(() => {
     loadData();

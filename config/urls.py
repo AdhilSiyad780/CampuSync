@@ -13,7 +13,9 @@ urlpatterns = [
     path('api/',include('class_announcement_attendence.urls')),
     path('api/',include('assignment.urls')),
     path('api/',include('attendence.urls')),
-    path('api/',include('exams.urls'))
+    path('api/',include('exams.urls')),
+    path('api/',include('finance.urls')),
+
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

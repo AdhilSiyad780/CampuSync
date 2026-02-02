@@ -35,7 +35,7 @@ export default function TeachersPage() {
     id_proof_url: "",
   });
 
-  const navigate = useNavigate();
+  
 
   useEffect(() => {
     loadTeachers(1);

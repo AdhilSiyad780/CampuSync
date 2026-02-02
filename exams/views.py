@@ -27,6 +27,7 @@ class ExamListCreateView(generics.ListCreateAPIView):
     serializer_class = ExamSerializer
     permission_classes = [IsTeacher]
     
+    
     def get_queryset(self):
         user = self.request.user
         queryset = Exam.objects.filter(

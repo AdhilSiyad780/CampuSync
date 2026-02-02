@@ -17,6 +17,13 @@ export default function StudentAssignmentsPage() {
   const [submissionFile, setSubmissionFile] = useState(null);
   const [submissionText, setSubmissionText] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const navigate = useNavigate();
+
+  const user = JSON.parse(localStorage.getItem('user'))
+  if (user?.user_type !== 'student') {
+     navigate('/student/login')
+  }
+
 
   useEffect(() => {
     fetchAssignments();

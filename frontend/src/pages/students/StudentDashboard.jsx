@@ -10,7 +10,10 @@ export default function StudentDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
-
+  const user = JSON.parse(localStorage.getItem('user'))
+  if (user?.user_type !== 'student') {
+     navigate('/student/login')
+  }
   // Mock Data (Replace with your API calls)
   const studentInfo = {
     name: "Emily Harper",

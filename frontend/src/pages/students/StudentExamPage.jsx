@@ -5,6 +5,7 @@ import {
   MessageSquare, CheckCircle, List, FileText, Send, Info,X // <--- Add Info here
 } from "lucide-react";
 import api from "../../api/axios";
+import { useNavigate } from "react-router-dom";
 
 export default function StudentExamsPage() {
   const [exams, setExams] = useState([]);
@@ -20,6 +21,14 @@ export default function StudentExamsPage() {
   const [showConcernModal, setShowConcernModal] = useState(false);
   const [selectedResult, setSelectedResult] = useState(null);
   const [concernText, setConcernText] = useState("");
+
+  const navigate = useNavigate();
+  
+  // const user = JSON.parse(localStorage.getItem('user'))
+  // if (user?.user_type !== 'student') {
+  //    navigate('/student/login')
+  // }
+
 
   useEffect(() => {
     fetchData();

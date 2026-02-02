@@ -10,3 +10,10 @@ class IsStudent(BasePermission):
             and getattr(user,'user_type',None)=='student'
         )
         
+class IsParent(BasePermission):
+    def has_permission(self, request, view):
+        user = getattr(request,'user',None)
+        return bool(
+            user and user.is_authenticated 
+            and getattr(user,'user_type',None)=='parent'
+        )

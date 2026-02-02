@@ -7,9 +7,16 @@ import {
 import { useNavigate, useLocation } from "react-router-dom";
 
 export default function TeacherDashboard() {
+  
+
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
+
+  const user = JSON.parse(localStorage.getItem('user'))
+  if (user?.user_type !== 'teacher') {
+     navigate('/teacher/login')
+  }
 
   // --- Sidebar Navigation Items ---
   const menuItems = [

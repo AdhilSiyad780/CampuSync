@@ -4,6 +4,8 @@ import {
   ChevronRight, ClipboardList, AlertCircle, Loader2, CheckCircle,MessageSquare
 } from "lucide-react";
 import api from "../../api/axios";
+import { useNavigate } from 'react-router-dom'; // Correct
+
 
 export default function TeacherExamsPage() {
   const [exams, setExams] = useState([]);
@@ -35,6 +37,13 @@ export default function TeacherExamsPage() {
     max_marks: 100,
     status: "scheduled",
   });
+
+  const navigate = useNavigate();
+
+  // const user = JSON.parse(localStorage.getItem('user'))
+  // if (user?.user_type !== 'teacher') {
+  //    navigate('/teacher/login')
+  // }
 
   useEffect(() => {
     loadData();

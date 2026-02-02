@@ -9,6 +9,7 @@ import api from "../../api/axios";
 function AdminSignupComplete() {
   const location = useLocation();
   const navigate = useNavigate();
+  
 
   // Incoming state from previous step
   const verifiedEmail = location.state?.email || "";

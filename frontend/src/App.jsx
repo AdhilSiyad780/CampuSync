@@ -15,6 +15,7 @@ import AdminProfile from './pages/school/AdminProfile.jsx'
 import ClassesPage from "./pages/school/ClassesPage.jsx";
 import AnnouncementsPage from "./pages/school/AnnouncementsPage.jsx";
 import TimetablePage from "./pages/school/TimetablePage.jsx";
+import AdminFinancePage from "./pages/school/AdminFinancePage.jsx";
 // ---------- SUPERADMIN PAGES ----------
 import LoginPage from "./pages/SuperAdminLogin";
 import Layout from "./componets/Layout";
@@ -39,16 +40,19 @@ import TeacherAssignmentsPage from "./pages/teacher/TeacherAssignmentsPage.jsx";
 import TeacherAttendancePage from "./pages/teacher/TeacherAttendencePage.jsx";
 import TeacherExamsPage from "./pages/teacher/TeacherExamsPage.jsx";
 
-
 //============Parent Login==============================
 import ParentLogin from "./pages/parents/ParentLogin.jsx";
 import ParentDashboard from './pages/parents/ParentDashboard.jsx'
 import ParentProfile from "./pages/parents/ParentProfile.jsx";
+import ParentFinancePage from "./pages/parents/ParentFinacePage.jsx";
 
 
 //============FORGOT PASSWORD ==============================
 import ForgotPasswordPage from "./pages/forgotpassword/ForgotPasswordPage.jsx";
 import ResetPasswordPage from "./pages/forgotpassword/ResetPasswordPage.jsx";
+
+// ==================AnnouncementsPage  LIST============================================
+import AnnouncementList from "./componets/AnnouncementList.jsx";
 
 
 export default function App() {
@@ -71,6 +75,8 @@ export default function App() {
         <Route path="/classes"  element={<ClassesPage/>}/>
         <Route path="/announcements"  element={<AnnouncementsPage/>}/>
         <Route path="/timetable"  element={<TimetablePage/>}/>
+         <Route path="/finance"  element={<AdminFinancePage/>}/>
+
 
 
 
@@ -84,6 +90,7 @@ export default function App() {
          <Route path="/student/assignment" element={<StudentAssignmentsPage />} />
           <Route path="/student/attendence" element={<StudentAttendancePage />} />
            <Route path="/student/exams" element={<StudentExamsPage />} />
+           <Route path="/student/announcement" element={<AnnouncementList />} />
 
         {/* ===================== TEACHER AUTH ROUTE ===================== */}
         <Route path="/teacher/login" element={<TeacherLogin />} />
@@ -92,14 +99,19 @@ export default function App() {
             <Route path="/teacher/assignment" element={<TeacherAssignmentsPage />} /> 
             <Route path="/teacher/attendence" element={<TeacherAttendancePage />} />
             <Route path="/teacher/exam" element={<TeacherExamsPage />} />
+           <Route path="/teacher/announcement" element={<AnnouncementList />} />
 
          {/* ===================== PARENT AUTH ROUTE ===================== */}
         <Route path="/parent/login" element={<ParentLogin />} />
         <Route path="/parent/dashboard" element={<  ParentDashboard />} />
         <Route path="/parent/profile" element={<  ParentProfile />} />
+        <Route path="/parent/finance" element={<  ParentFinancePage />} />
+        <Route path="/parent/announcement" element={<AnnouncementList />} />
+
         {/* //============FORGOT PASSWORD ============================== */}
         <Route path="/forgotpassword" element={<  ForgotPasswordPage />} />
         <Route path="/reset-password/:uid/:token" element={<ResetPasswordPage />} />
+
 
         {/* ===================== PROTECTED SUPERADMIN AREA ===================== */}
         <Route

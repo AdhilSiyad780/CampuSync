@@ -65,63 +65,104 @@ class AvailableTeachersView(APIView):
         ).values('id', 'fullname', 'email')
         
         return Response(list(teachers))
+# class_announcement_attendence/views.py
+
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
+from django.utils import timezone
 
 class AnnouncementListCreateView(generics.ListCreateAPIView):
     serializer_class = AnnouncementSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        """
-        Filters announcements so users only see what is relevant to them.
-        """
         user = self.request.user
         tenant = getattr(user, 'tenant', None)
         
         if not tenant:
             return Announcement.objects.none()
 
-        # 1. Start with base filter: Only current tenant and not expired
         queryset = Announcement.objects.filter(
             tenant=tenant,
             expiry_date__gt=timezone.now()
         )
 
-        # 2. Targeted Filtering based on user type
         if user.user_type == 'student':
-            # Students see 'all' + 'students'
             return queryset.filter(Q(target_audience='students') | Q(target_audience='all'))
-        
         elif user.user_type == 'parent':
-            # Parents see 'all' + 'parents'
             return queryset.filter(Q(target_audience='parents') | Q(target_audience='all'))
-            
         elif user.user_type == 'teacher':
-            # Teachers see 'all' + 'teachers'
             return queryset.filter(Q(target_audience='teachers') | Q(target_audience='all'))
 
-        # Admins (school staff) can see all announcements for their tenant
         return queryset
 
     def perform_create(self, serializer):
-        # The serializer.create method already handles this, 
-        # but perform_create is the standard way in DRF Views to pass extra data.
-        serializer.save(author=self.request.user, tenant=self.request.user.tenant)
+        announcement = serializer.save(
+            author=self.request.user, 
+            tenant=self.request.user.tenant
+        )
+        
+        # Broadcast the new announcement via WebSocket
+        self.broadcast_announcement(announcement, 'created')
+    
+    def broadcast_announcement(self, announcement, action='created'):
+        """Broadcast announcement to all connected clients in the tenant"""
+        channel_layer = get_channel_layer()
+        tenant_id = str(announcement.tenant.id)
+        
+        # Serialize the announcement
+        serializer = AnnouncementSerializer(announcement)
+        
+        async_to_sync(channel_layer.group_send)(
+            f'announcements_{tenant_id}',
+            {
+                'type': 'announcement_created',
+                'action': action,
+                'announcement': serializer.data
+            }
+        )
 
 
 class AnnouncementDetailView(generics.RetrieveUpdateDestroyAPIView):
-    """
-    Handles Viewing, Editing, and Deleting a single announcement.
-    """
     serializer_class = AnnouncementSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        # Ensure users can only interact with announcements from their own school
         return Announcement.objects.filter(tenant=self.request.user.tenant)
-
-
-
-
+    
+    def perform_update(self, serializer):
+        announcement = serializer.save()
+        self.broadcast_announcement(announcement, 'updated')
+    
+    def perform_destroy(self, instance):
+        announcement_id = instance.id
+        tenant_id = str(instance.tenant.id)
+        instance.delete()
+        
+        # Broadcast deletion
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f'announcements_{tenant_id}',
+            {
+                'type': 'announcement_deleted',
+                'announcement_id': announcement_id
+            }
+        )
+    
+    def broadcast_announcement(self, announcement, action):
+        """Broadcast announcement update"""
+        channel_layer = get_channel_layer()
+        tenant_id = str(announcement.tenant.id)
+        
+        serializer = AnnouncementSerializer(announcement)
+        
+        async_to_sync(channel_layer.group_send)(
+            f'announcements_{tenant_id}',
+            {
+                'type': 'announcement_updated',
+                'announcement': serializer.data
+            }
+        )
 
 class SubjectView(viewsets.ModelViewSet):
     serializer_class = SubjectSerializer

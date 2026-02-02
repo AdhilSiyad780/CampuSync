@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom"
+
 import { 
   Users, Calendar, CheckCircle, XCircle, Clock, 
   ChevronRight, Save, Filter, Loader2 
@@ -16,7 +18,12 @@ export default function TeacherAttendancePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const navigate = useNavigate();
 
+  const user = JSON.parse(localStorage.getItem('user'))
+  if (user?.user_type !== 'teacher') {
+     navigate('/teacher/login')
+  }
   // 1. Initial Load: Get classes assigned to teacher
   useEffect(() => {
     const fetchClasses = async () => {

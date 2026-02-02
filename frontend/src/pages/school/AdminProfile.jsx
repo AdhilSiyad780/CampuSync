@@ -19,6 +19,7 @@ export default function AdminProfile() {
   
 
   const navigate = useNavigate()
+  
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

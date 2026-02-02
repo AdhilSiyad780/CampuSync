@@ -29,6 +29,11 @@ export default function TeacherProfile() {
     id_proof_url: "",
   });
 
+  const user = JSON.parse(localStorage.getItem('user'))
+  if (user?.user_type !== 'teacher') {
+     navigate('/teacher/login')
+  }
+
   useEffect(() => {
     loadProfile();
   }, []);

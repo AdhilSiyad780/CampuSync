@@ -10,6 +10,7 @@ import {
   TrendingUp
 } from "lucide-react";
 import api from "../../api/axios";
+import { useNavigate } from "react-router-dom";
 
 export default function StudentAttendancePage() {
   const [attendanceData, setAttendanceData] = useState([]);
@@ -26,6 +27,12 @@ export default function StudentAttendancePage() {
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
   ];
+  const navigate = useNavigate();
+   
+  const user = JSON.parse(localStorage.getItem('user'))
+  if (user?.user_type !== 'student') {
+     navigate('/student/login')
+  }
 
   useEffect(() => {
     fetchStudentAttendance();

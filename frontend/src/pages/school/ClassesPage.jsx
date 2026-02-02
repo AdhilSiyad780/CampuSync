@@ -25,6 +25,7 @@ export default function ClassesPage() {
   if (!valid_entry){
       navigate('/')
   }
+  
 
   const [form, setForm] = useState({
     id: null,

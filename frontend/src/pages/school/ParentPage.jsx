@@ -39,6 +39,7 @@ export default function ParentsPage() {
   });
 
   const navigate = useNavigate();
+  
 
   useEffect(() => {
     init(1);
