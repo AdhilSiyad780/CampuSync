@@ -14,22 +14,32 @@ export default function LoginPage() {
 
     try {
       const res = await api.post("superadmin/login/", { email, password });
-      const access = res.data?.access;
-
-      if (!access) {
-        setError("No access token received.");
+      const userData = res.data?.user;
+      console.log(userData.user_type)
+      if (!userData) {
+        setError("Invalid response from server.");
         return;
       }
 
-      localStorage.setItem("access", access);
-      // if you set axios defaults for Authorization, do it here
+      // 1. Check if the user is actually a superadmin
+      if (userData.user_type === 'superadmin') {
+        // Save non-sensitive info for the UI
+      localStorage.setItem("user", JSON.stringify(res.data.user));        
+            navigate("/superadmin"); 
+      } else {
+        // 2. Security: If they aren't a superadmin, don't let them in!
+        // We should also ideally call a logout endpoint here to clear the cookie
+        setError("Access Denied: You do not have Super Admin privileges.");
+        
+        // Cleanup local storage just in case
+        localStorage.removeItem("user");
+      }
 
-      navigate("/superadmin"); // go into protected layout
     } catch (err) {
       console.error("LOGIN ERROR:", err.response?.data || err.message);
-      setError("Invalid email or password.");
+      setError(err.response?.data?.detail || "Invalid email or password.");
     }
-  };
+  };;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-100 dark:bg-slate-950">

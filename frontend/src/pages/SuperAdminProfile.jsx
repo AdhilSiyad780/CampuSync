@@ -24,25 +24,17 @@ export default function SuperAdminProfile() {
   }, []);
 
   const loadProfile = async () => {
-    setLoading(true);
-    setError("");
-    setSuccess("");
-
     try {
       const res = await api.get("superadmin/profile/");
-      console.log("PROFILE DATA:", res.data); // <-- see what profile_picture looks like
+      console.log(res.data)
       setProfile(res.data);
-      setFullname(res.data.fullname || "");
     } catch (err) {
-      console.error("LOAD PROFILE ERROR:", err.response?.data || err.message);
-      if (err.response?.status === 401) {
-        localStorage.removeItem("access");
-        navigate("/");
-        return;
+      if (err.response?.status === 403) {
+        console.log(err)
+        setError("Access Denied: You do not have permission to view this page.");
+        // Redirect after a delay
+        setTimeout(() => navigate("/"), 3000);
       }
-      setError("Failed to load profile.");
-    } finally {
-      setLoading(false);
     }
   };
 

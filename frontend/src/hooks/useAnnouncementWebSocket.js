@@ -10,20 +10,15 @@ export function useAnnouncementWebSocket(onAnnouncementUpdate) {
   const maxReconnectAttempts = 5;
 
   const connect = useCallback(() => {
-    const token = localStorage.getItem('access') || localStorage.getItem('token');
     
-    if (!token) {
-      console.error('No authentication token found');
-      return;
-    }
-    
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = 'localhost:8000';
-    const wsUrl = `${protocol}//${host}/ws/announcements/?token=${token}`;
+   
+    const wsUrl = "ws://localhost:8000/ws/announcements/";
+
+
     
     console.log('Connecting to WebSocket:', wsUrl);
-    
     ws.current = new WebSocket(wsUrl);
+    
 
     ws.current.onopen = () => {
       console.log('✅ WebSocket Connected');

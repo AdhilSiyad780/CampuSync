@@ -9,6 +9,8 @@ User = get_user_model()
 
 class AnnouncementConsumer(AsyncWebsocketConsumer):
     async def connect(self):
+        print("SCOPE USER:", self.scope["user"])
+
         print(f"🔌 WebSocket connection attempt")
         
         # Get user from scope

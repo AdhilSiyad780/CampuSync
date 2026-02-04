@@ -8,12 +8,15 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import SubscriptionPlan,Subscription
 from django.utils import timezone
+from config.authenticate import CookieJWTAuthentication # Import your custom class
 
 
 class SubscriptionPlanListView(generics.ListAPIView):
     queryset = SubscriptionPlan.objects.all()
     serializer_class = SubscriptionPlanSerializer
     permission_classes = [IsAuthenticated, IsSuperAdminOrAdmin]
+    authentication_classes = [CookieJWTAuthentication]
+
     def get_queryset(self):
         return SubscriptionPlan.objects.filter(price__gt=0)
 

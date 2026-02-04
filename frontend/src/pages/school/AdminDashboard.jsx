@@ -17,12 +17,20 @@ export default function AdminDashboard() {
 
  
 
-  const handleLogout = () => {
-    localStorage.removeItem("access");
-    localStorage.removeItem("admin_fullname");
-    localStorage.removeItem("admin_email");
-    navigate("/login");
-  };
+  const handleLogout = async () => {
+  try {
+    // 1. Hit the backend to clear HttpOnly cookies
+    await api.get('logout/'); 
+  } catch (err) {
+    console.error("Logout failed on server, but clearing local state anyway.");
+  } finally {
+    // 2. Clear the non-sensitive user data from local storage
+    localStorage.removeItem("user");
+    
+    // 3. Navigate back to the landing or login page
+    navigate("/"); 
+  }
+};
 
   useEffect(() => {
     const init = async () => {
@@ -42,8 +50,7 @@ export default function AdminDashboard() {
     } catch (err) {
       const status = err.response?.status;
       if (status === 401) {
-        localStorage.removeItem("access");
-        navigate("/login");
+        navigate("/");
         return;
       }
       setError(status === 403 ? "Permission denied." : "Failed to load plans.");
@@ -56,7 +63,6 @@ export default function AdminDashboard() {
       setTenantSummary(res.data || null);
     } catch (err) {
       if (err.response?.status === 401) {
-        localStorage.removeItem("access");
         navigate("/login");
         return;
       }
@@ -131,18 +137,16 @@ export default function AdminDashboard() {
   }
 
   const menuItems = [
-    { name: "Dashboard", icon: <LayoutDashboard size={20} />, path: "/dashboard" },
-    { name: "Students", icon: <Users size={20} />, path: "/students" },
-    { name: "Teachers", icon: <UserCog size={20} />, path: "/teachers" },
-    // --- NEW MODULES ---
-    { name: "Classes", icon: <School size={20} />, path: "/classes" },
-    { name: "Parents", icon: <Users size={20} />, path: "/parents" }, 
-    { name: "Timetable", icon: <Clock size={20} />, path: "/timetable" },
-    { name: "Announcements", icon: <Megaphone size={20} />, path: "/announcements" },
-    { name: "Finance", icon: <CreditCard size={20} />, path: "/finance" },
-    // -------------------
-    { name: "School Details", icon: <Settings size={20} />, path: "/school" },
-  ];
+  { name: "Dashboard", icon: <LayoutDashboard size={20} />, path: "/dashboard" },
+  { name: "Students", icon: <Users size={20} />, path: "/students" },
+  { name: "Teachers", icon: <UserCog size={20} />, path: "/teachers" },
+  { name: "Parents", icon: <Users size={20} />, path: "/parents" }, 
+  { name: "Classes", icon: <School size={20} />, path: "/classes" },
+  { name: "Timetable", icon: <Clock size={20} />, path: "/timetable" },
+  { name: "Announcements", icon: <Megaphone size={20} />, path: "/announcements" },
+  { name: "Finance", icon: <CreditCard size={20} />, path: "/finance" },
+  { name: "Profile Settings", icon: <Settings size={20} />, path: "/profile" },
+];
 
   return (
     <div className="flex min-h-screen bg-[#F8FAFC]">

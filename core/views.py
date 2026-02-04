@@ -3,6 +3,7 @@ import uuid
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from django.contrib.auth import authenticate
 
 from subscription.models import Subscription, SubscriptionPlan
 from .serializer import( SuperAdminLoginSerializer,AdminVerifyOTPSerializer,
@@ -29,20 +30,53 @@ from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 
 from .models import Tenant
+from rest_framework import permissions
 
 from  subscription.permissions import IsSuperAdminOrAdmin  # or a stricter IsSuperAdmin if you have it
 
 
+
+
+
+class IsSuperUser(permissions.BasePermission):
+    def has_permission(self, request, view):
+        print(request.user.user_type, "======================================" ,request.user.email)
+        return bool(request.user and request.user.is_authenticated and request.user.user_type == "superadmin")
 
 class SuperAdminLoginView(APIView):
     permission_classes = [AllowAny] 
     def post(self,request):
         serializers = SuperAdminLoginSerializer(data=request.data)
         serializers.is_valid(raise_exception=True)
-        return Response(serializers.validated_data,status=status.HTTP_200_OK)
+        user = authenticate(
+            email=request.data.get("email"),
+            password=request.data.get("password"),
+        )
+        refresh = RefreshToken.for_user(user)
+
+        
+        response =  Response(serializers.validated_data,status=status.HTTP_200_OK)
+        response.set_cookie(
+            key="access_token",
+            value=str(refresh.access_token),
+            httponly=True,
+            samesite="Lax",
+            secure=False,
+            path="/",
+            )
+
+        response.set_cookie(
+            key="refresh_token",
+            value=str(refresh),
+            httponly=True,
+            samesite="Lax",
+            secure=False,
+            path="/",
+        )
+        return response
     
 class SuperAdminProfileView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsSuperUser]
     parser_classes = [MultiPartParser, FormParser]
 
     def get(self, request):
@@ -92,8 +126,7 @@ class AdminSignupView(APIView):
         access = refresh.access_token
         tenant = user.tenant
         data = {
-                "refresh": str(refresh),
-                "access": str(access),
+                
                 "user": {
                     "id": user.id,
                     "email": user.email,
@@ -111,7 +144,27 @@ class AdminSignupView(APIView):
                     "status": tenant.status,
                 } if tenant else None,
             }
-        return Response(data, status=status.HTTP_200_OK)
+        response =  Response(data,status=status.HTTP_200_OK)
+
+        response.set_cookie(
+            key="access_token",
+            value=str(refresh.access_token),
+            httponly=True,
+            samesite="Lax",
+            secure=False,
+            path="/",
+
+            )
+
+        response.set_cookie(
+            key="refresh_token",
+            value=str(refresh),
+            httponly=True,
+            samesite="Lax",
+            secure=False,
+            path="/",
+        )
+        return response
 
         
 
@@ -261,8 +314,7 @@ class GoogleAuthView(APIView):
         access = refresh.access_token
 
         data = {
-            "refresh": str(refresh),
-            "access": str(access),
+            
             "user": {
                 "id": user.id,
                 "email": user.email,
@@ -280,7 +332,26 @@ class GoogleAuthView(APIView):
             } if tenant else None,
         }
 
-        return Response(data, status=status.HTTP_200_OK)
+        response =  Response(data,status=status.HTTP_200_OK)
+
+        response.set_cookie(
+            key="access_token",
+            value=str(refresh.access_token),
+            httponly=True,
+            samesite="Lax",
+            secure=False,
+            path="/",
+            )
+
+        response.set_cookie(
+            key="refresh_token",
+            value=str(refresh),
+            httponly=True,
+            samesite="Lax",
+            secure=False,
+            path="/",
+        )
+        return response
     
 
 class AdminLoginView(APIView):
@@ -291,7 +362,33 @@ class AdminLoginView(APIView):
     def post(self, request):
         serializer = AdminLoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        return Response(serializer.validated_data, status=status.HTTP_200_OK)
+        user = authenticate(
+            email=request.data.get("email"),
+            password=request.data.get("password"),
+        )
+        refresh = RefreshToken.for_user(user)
+        access = refresh.access_token
+
+        response =  Response(serializer.validated_data,status=status.HTTP_200_OK)
+        response.set_cookie(
+            key="access_token",
+            value=str(refresh.access_token),
+            httponly=True,
+            samesite="Lax",
+            secure=False,
+            path="/",
+            )
+
+        response.set_cookie(
+            key="refresh_token",
+            value=str(refresh),
+            httponly=True,
+            samesite="Lax",
+            secure=False,
+            path="/",
+        )
+        return response
+
     
 
 
@@ -329,7 +426,27 @@ class StudentLoginView(APIView):
             },
             'profile_data':profile_data
         }
-        return Response(data,status=status.HTTP_200_OK)
+        response  =  Response(data,status=status.HTTP_200_OK)
+        response.set_cookie(
+            key="access_token",
+            value=str(refresh.access_token),
+            httponly=True,
+            samesite="Lax",
+            secure=False,
+            path="/",
+            )
+
+        response.set_cookie(
+            key="refresh_token",
+            value=str(refresh),
+            httponly=True,
+            samesite="None",
+            secure=False,
+            path="/",
+        )
+        return response
+
+
 
 
 
@@ -361,8 +478,6 @@ class TeacherLoginView(APIView):
                 "roll_number": getattr(student_profile, "roll_number", None),
             }
         data  = {
-            'access':str(access),
-            'refresh':str(refresh),
             'user':{
                 'id':user.id,
                 'fullname':user.fullname,
@@ -371,7 +486,26 @@ class TeacherLoginView(APIView):
             },
             'profile_data':profile_data
         }
-        return Response(data,status=status.HTTP_200_OK)
+        response =  Response(data,status=status.HTTP_200_OK)
+
+        response.set_cookie(
+            key="access_token",
+            value=str(refresh.access_token),
+            httponly=True,
+            samesite="Lax",
+            secure=False,
+            path="/",
+            )
+
+        response.set_cookie(
+            key="refresh_token",
+            value=str(refresh),
+            httponly=True,
+            samesite="Lax",
+            secure=False,
+            path="/",
+        )
+        return response
 
 
 
@@ -420,4 +554,50 @@ class ParentLoginView(APIView):
             },
             "profile": profile_data,
         }
-        return Response(data, status=status.HTTP_200_OK)
+        response =  Response(data, status=status.HTTP_200_OK)
+        response.set_cookie(
+            key="access_token",
+            value=str(refresh.access_token),
+            httponly=True,
+            samesite="Lax",
+            secure=False,
+            path="/",
+          
+            )
+
+        response.set_cookie(
+            key="refresh_token",
+            value=str(refresh),
+            httponly=True,
+            samesite="Lax",
+            secure=False,
+            path="/",
+          
+        )
+        return response
+    
+
+class LogoutView(APIView):
+    # You want to ensure only logged-in users can hit this, 
+    # but AllowAny is also fine if you just want to wipe cookies regardless.
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        response = Response({"detail": "Successfully logged out."}, status=status.HTTP_200_OK)
+        
+        # 1. Clear the Access Cookie
+        response.delete_cookie(
+            key='access_token', # Must match the key name in your LoginView
+            path='/',
+            samesite='Lax'
+        )
+        
+        # 2. Clear the Refresh Cookie
+        response.delete_cookie(
+            key='refresh_token',
+            path='/',
+            samesite='Lax'
+        )
+        
+        return response
+    

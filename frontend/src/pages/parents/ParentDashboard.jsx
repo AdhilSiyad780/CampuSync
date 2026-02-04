@@ -21,10 +21,20 @@ export default function ParentDashboard() {
     { name: "Messages", icon: <MessageSquare size={20} />, path: "/parent/messages" },
   ];
 
-  const handleLogout = () => {
-    localStorage.clear();
-    navigate("/parent/login", { replace: true });
-  };
+  const handleLogout = async () => {
+  try {
+    // 1. Hit the backend to clear HttpOnly cookies
+    await api.get('logout/'); 
+  } catch (err) {
+    console.error("Logout failed on server, but clearing local state anyway.");
+  } finally {
+    // 2. Clear the non-sensitive user data from local storage
+    localStorage.removeItem("user");
+    
+    // 3. Navigate back to the landing or login page
+    navigate("/"); 
+  }
+};
 
   return (
     <div className="flex min-h-screen bg-[#F8FAFC]">

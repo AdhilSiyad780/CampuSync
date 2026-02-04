@@ -21,7 +21,7 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-insecure-key-change-me")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DJANGO_DEBUG", "True") == "True"
 
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1,0.0.0.0").split(",")
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS",).split(",")
 
 
 # ===================== APPLICATIONS =====================
@@ -84,7 +84,8 @@ WSGI_APPLICATION = "config.wsgi.application"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        'config.authenticate.CookieJWTAuthentication',
+        # "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",
@@ -92,6 +93,25 @@ REST_FRAMEWORK = {
 }
 
 AUTH_USER_MODEL = "core.User"
+
+
+CORS_ALLOWED_ORIGINS = [
+        "http://localhost:5173",
+]   
+CORS_ALLOW_CREDENTIALS = True  # CRITICAL: Allow cookies
+
+# Session/Cookie settings
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_HTTPONLY = False  # Must be False so JS can read it
+CSRF_COOKIE_SECURE = False  # Set to True in production
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_TRUSTED_ORIGINS = [
+
+    "http://localhost:5173",
+
+]
 
 
 # ===================== DATABASE =====================
@@ -148,7 +168,7 @@ MEDIA_ROOT = BASE_DIR / "media"
 # ===================== CORS (DEV) =====================
 
 # For development – open CORS. For prod, tighten this.
-CORS_ALLOW_ALL_ORIGINS = os.getenv("CORS_ALLOW_ALL_ORIGINS", "True") == "True"
+CORS_ALLOW_ALL_ORIGINS = False
 
 
 # ===================== EMAIL =====================
@@ -181,15 +201,18 @@ FRONTEND_URL = os.getenv('FRONTEND_URL','')
 
 
 SIMPLE_JWT = {
-    # The token used for every API request
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=30), 
-    
-    # The token used to generate new access tokens
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=60), 
-    
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
-    'AUTH_HEADER_TYPES': ('Bearer',),
+    'AUTH_COOKIE': 'access_token',  # Cookie name
+    'AUTH_COOKIE_REFRESH': 'refresh_token',
+    'AUTH_COOKIE_SECURE': False,
+    'AUTH_COOKIE_HTTP_ONLY': True,
+    'AUTH_COOKIE_SAMESITE': 'Lax',  # <--- Change 'None' to 'Lax'
+    'AUTH_COOKIE_DOMAIN': 'localhost',
+    'AUTH_COOKIE_PATH': '/',
+
 }
 
 

@@ -14,6 +14,21 @@ export default function StudentDashboard() {
   if (user?.user_type !== 'student') {
      navigate('/student/login')
   }
+
+  const handleLogout = async () => {
+  try {
+    // 1. Hit the backend to clear HttpOnly cookies
+    await api.get('logout/'); 
+  } catch (err) {
+    console.error("Logout failed on server, but clearing local state anyway.");
+  } finally {
+    // 2. Clear the non-sensitive user data from local storage
+    localStorage.removeItem("user");
+    
+    // 3. Navigate back to the landing or login page
+    navigate("/"); 
+  }
+};
   // Mock Data (Replace with your API calls)
   const studentInfo = {
     name: "Emily Harper",
@@ -76,7 +91,7 @@ export default function StudentDashboard() {
           ))}
         </nav>
 
-        <button className="m-4 flex items-center gap-3 px-3 py-2.5 rounded-xl text-red-500 hover:bg-red-50 transition-colors">
+        <button onClick={()=>handleLogout()} className="m-4 flex items-center gap-3 px-3 py-2.5 rounded-xl text-red-500 hover:bg-red-50 transition-colors">
           <LogOut size={20} />
           {sidebarOpen && <span className="font-semibold text-sm">Logout</span>}
         </button>

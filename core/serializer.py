@@ -24,10 +24,7 @@ class SuperAdminLoginSerializer(serializers.Serializer):
             raise serializers.ValidationError('invalid email or password')
         if not user.is_superuser:
             raise serializers.ValidationError('credentials are Superuser')
-        refresh = RefreshToken.for_user(user)
         return {
-            'refresh':str(refresh),
-            'access':str(refresh.access_token),
             'user':{
                 'id':user.id,
                 'email':user.email,
@@ -281,11 +278,8 @@ class AdminVerifyOTPSerializer(serializers.Serializer):
         otp_obj.save(update_fields=["is_used"])
 
         # 6️⃣ Issue JWT
-        refresh = RefreshToken.for_user(user)
 
         return {
-            "access": str(refresh.access_token),
-            "refresh": str(refresh),
             "user": {
                 "id": user.id,
                 "email": user.email,
@@ -296,16 +290,8 @@ class AdminVerifyOTPSerializer(serializers.Serializer):
 
 
 
-
-
-
-
-
-
-
 class GoogleAuthSerializer(serializers.Serializer):
     credential = serializers.CharField()
-
 
 
 class AdminLoginSerializer(serializers.Serializer):
@@ -333,14 +319,11 @@ class AdminLoginSerializer(serializers.Serializer):
             raise serializers.ValidationError("Your account is not active.")
 
         # Generate JWT pair
-        refresh = RefreshToken.for_user(user)
-        access = refresh.access_token
+        
 
         tenant = getattr(user, "tenant", None)
 
         return {
-            "access": str(access),
-            "refresh": str(refresh),
             "user": {
                 "id": user.id,
                 "email": user.email,

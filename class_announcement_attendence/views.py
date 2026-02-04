@@ -11,11 +11,12 @@ from .serializers import (AnnouncementSerializer, SchoolClassSerializer,SubjectS
 from core.models import User
 from django.db.models import Q  
 from members.views import PaginationProperties
+from members.views import IsAdminUserType
 
 
 class SchoolClassListCreateView(generics.ListCreateAPIView):
     serializer_class = SchoolClassSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsAdminUserType]
     pagination_class = PaginationProperties
     def get_queryset(self):
         user = self.request.user

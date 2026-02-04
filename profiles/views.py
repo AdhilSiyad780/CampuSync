@@ -146,8 +146,12 @@ class ResetPasswordView(APIView):
         
         if serializer.is_valid():
             serializer.save()
-            return Response({
+            response =  Response({
                 "message": "Password has been reset successfully. You can now login with your new password."
             }, status=status.HTTP_200_OK)
+        
+            response.delete_cookie('access_token', path='/', samesite='Lax')
+            response.delete_cookie('refresh_token', path='/', samesite='Lax')
+            return response
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

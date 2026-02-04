@@ -3,7 +3,7 @@ from .views import (SuperAdminLoginView,SuperAdminProfileView,
                     AdminSignupSendOTPView,AdminVerifyOTPView,AdminSignupView,
                     GoogleAuthView,AdminLoginView,
                     TenantListForSuperadminView,StudentLoginView,TeacherLoginView,
-                    ParentLoginView)
+                    ParentLoginView,LogoutView)
 
 
 urlpatterns = [
@@ -22,6 +22,10 @@ urlpatterns = [
     path("teacher/login/", TeacherLoginView.as_view(), name="teacher_login"),
 
     path("parent/login/", ParentLoginView.as_view(), name="parent_login"),
+
+    path("logout/", LogoutView.as_view(), name="parent_login"),
+    
+
     
 
    

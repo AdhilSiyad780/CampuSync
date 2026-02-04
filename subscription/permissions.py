@@ -10,6 +10,7 @@ class IsSuperAdminOrAdmin(permissions.BasePermission):
 
     def has_permission(self, request, view):
         user = request.user
+        print('requested usertype is',user.user_type)
 
         if not user or not user.is_authenticated:
             return False

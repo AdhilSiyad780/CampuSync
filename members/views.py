@@ -14,17 +14,13 @@ class PaginationProperties(PageNumberPagination):
 
 class IsAdminUserType(permissions.BasePermission):
     def has_permission(self, request, view):
-        user = request.user
-        if not user or not user.is_authenticated:
-            return False
-        if getattr(user, "is_superuser", False):
-            return True
-        return getattr(user, "user_type", "") == "admin"
+        print(request.user.user_type, "======================================" )
+        return bool(request.user and request.user.is_authenticated and request.user.user_type == "admin")
 
 
 class StudentProfileListCreateView(generics.ListCreateAPIView):
     serializer_class = StudentProfileSerializer
-    permission_classes = [permissions.IsAuthenticated, IsAdminUserType]
+    permission_classes = [permissions.IsAuthenticated]
     pagination_class = PaginationProperties
 
     def get_queryset(self):
