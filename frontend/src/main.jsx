@@ -22,12 +22,10 @@ function ThemeSyncWrapper() {
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-  <React.StrictMode>
     <Provider store={store}>
       <GoogleOAuthProvider clientId={import.meta.env.VITE_GOOGLE_CLIENT_ID} >
             <ThemeSyncWrapper />
 
       </GoogleOAuthProvider>
     </Provider>
-  </React.StrictMode>
 );

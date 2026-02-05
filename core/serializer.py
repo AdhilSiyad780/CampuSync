@@ -420,6 +420,7 @@ class StudentLoginSerializers(serializers.Serializer):
 
 
 class TeacherLoginSerializers(serializers.Serializer):
+    
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
     def validate(self,attr):

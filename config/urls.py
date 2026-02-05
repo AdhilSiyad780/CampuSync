@@ -6,6 +6,7 @@ from django.conf.urls.static import static
 
 
 urlpatterns = [
+    path('api/chat/',include('chat.urls')),
     path('api/', include('core.urls')),
     path('api/subscriptions/', include('subscription.urls')),
     path('api/',include('members.urls')),
@@ -15,6 +16,7 @@ urlpatterns = [
     path('api/',include('attendence.urls')),
     path('api/',include('exams.urls')),
     path('api/',include('finance.urls')),
+    
 
 ]
 if settings.DEBUG:

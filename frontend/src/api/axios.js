@@ -42,9 +42,7 @@ api.interceptors.response.use(
         console.warn("Session expired or unauthorized. Redirecting...");
       
       // If not on login page, redirect
-      if (!window.location.pathname.includes('login')) {
-         window.location.href = "/";
-      }
+      console.warn("Unauthorized request (401). Not redirecting.");
     }
     return Promise.reject(error);
   }

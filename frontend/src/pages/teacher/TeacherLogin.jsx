@@ -1,7 +1,7 @@
 // frontend/src/pages/teacher/TeacherLogin.jsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { GraduationCap, Mail, Lock, Loader2, ArrowRight, ShieldCheck } from "lucide-react";
+import { GraduationCap, Mail, Lock, Loader2, ArrowRight, ShieldCheck,AlertCircle } from "lucide-react";
 import api from "../../api/axios";
 
 export default function TeacherLogin() {

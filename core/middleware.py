@@ -1,7 +1,6 @@
-# core/middleware.py
 
-import http.cookies
-from channels.middleware import BaseMiddleware
+
+import re
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.auth import get_user_model
@@ -14,40 +13,41 @@ User = get_user_model()
 def get_user_from_token(token):
     try:
         access = AccessToken(token)
+        user_id = access["user_id"]
 
-        user_id = int(access["user_id"])  # ✅ important
-
-        return User.objects.select_related("tenant").get(id=user_id)
+        # ✅ Load user safely
+        return User.objects.get(id=user_id)
 
     except Exception as e:
-        print("❌ Token auth failed:", e)
+        print("JWT ERROR:", e)
         return AnonymousUser()
 
 
-class CookieJWTAuthMiddleware(BaseMiddleware):
-    """
-    Proper Channels middleware to authenticate WebSocket users via HttpOnly cookie JWT.
-    """
+class CookieJWTAuthMiddleware:
+    def __init__(self, app):
+        self.app = app
 
     async def __call__(self, scope, receive, send):
 
         headers = dict(scope["headers"])
         token = None
 
-        # ✅ Read cookie header
         if b"cookie" in headers:
-            cookie = http.cookies.SimpleCookie()
-            cookie.load(headers[b"cookie"].decode())
+            raw_cookie = headers[b"cookie"].decode()
 
-            if "access_token" in cookie:
-                token = cookie["access_token"].value
-                print("🍪 WS Cookie token found")
+            match = re.search(r"access_token=([^;]+)", raw_cookie)
 
-        # ✅ Authenticate user
+            if match:
+                token = match.group(1)
+                print("✅ TOKEN FOUND")
+            else:
+                print("❌ TOKEN NOT FOUND")
+
         if token:
             scope["user"] = await get_user_from_token(token)
         else:
             scope["user"] = AnonymousUser()
-            print("❌ No access_token cookie in WS request")
 
-        return await super().__call__(scope, receive, send)
+        return await self.app(scope, receive, send)
+
+

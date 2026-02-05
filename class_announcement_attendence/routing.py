@@ -1,6 +1,7 @@
-from django.urls import re_path
-from  . import consumer
+
+from django.urls import path
+from .consumer import AnnouncementConsumer
+
 websocket_urlpatterns = [
-    # Remove the extra .AnnouncementConsumer
-    re_path(r'ws/announcements/', consumer.AnnouncementConsumer.as_asgi()),
+    path("ws/announcements/", AnnouncementConsumer.as_asgi()),
 ]

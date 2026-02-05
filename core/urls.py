@@ -4,6 +4,7 @@ from .views import (SuperAdminLoginView,SuperAdminProfileView,
                     GoogleAuthView,AdminLoginView,
                     TenantListForSuperadminView,StudentLoginView,TeacherLoginView,
                     ParentLoginView,LogoutView)
+from . import views
 
 
 urlpatterns = [
@@ -22,6 +23,9 @@ urlpatterns = [
     path("teacher/login/", TeacherLoginView.as_view(), name="teacher_login"),
 
     path("parent/login/", ParentLoginView.as_view(), name="parent_login"),
+
+    path('auth/check/', views.check_auth, name='auth-check'),
+
 
     path("logout/", LogoutView.as_view(), name="parent_login"),
     

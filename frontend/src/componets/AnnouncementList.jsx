@@ -1,7 +1,9 @@
+// frontend/src/components/AnnouncementsList.jsx
+
 import { useEffect, useState, useCallback } from "react";
 import { 
-  Megaphone, Clock, User, Calendar, 
-  Link as LinkIcon, Wifi, WifiOff, Loader2 ,Search
+  Megaphone, Clock, User, 
+  Link as LinkIcon, Loader2, Search
 } from "lucide-react";
 import api from '../api/axios';
 import { useAnnouncementWebSocket } from "../hooks/useAnnouncementWebSocket";
@@ -11,10 +13,22 @@ export default function AnnouncementsList() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [user, setUser] = useState(null);
 
-  // 1. Role Detection for Theming
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
-  const role = user.user_type; 
+  // ✅ Get user from localStorage (temporary fix)
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (e) {
+        console.error('Failed to parse user:', e);
+      }
+    }
+  }, []);
+
+  const role = user?.user_type || 'student';
+  
   const theme = {
     admin: { color: "indigo", label: "Admin Board" },
     teacher: { color: "blue", label: "Staff Notices" },
@@ -22,22 +36,47 @@ export default function AnnouncementsList() {
     parent: { color: "purple", label: "Parent Updates" }
   }[role] || { color: "slate", label: "Broadcasts" };
 
-  // 🔌 WebSocket Logic: Keeps the list updated in real-time
-  const onAnnouncementUpdate = useCallback((payload) => {
-    const { action, data, announcement_id } = payload;
-    setAnnouncements(prev => {
-      if (action === "created") return [data, ...prev.filter(a => a.id !== data.id)];
-      if (action === "updated") return prev.map(a => a.id === data.id ? data : a);
-      if (action === "deleted") return prev.filter(a => a.id !== announcement_id);
-      return prev;
-    });
-    
-    // Auto-update selected item if it changes while being viewed
-    if (selectedItem?.id === (data?.id || announcement_id)) {
-      if (action === "deleted") setSelectedItem(null);
-      else setSelectedItem(data);
+  // 🔌 WebSocket Logic
+// In AnnouncementsPage.jsx
+const onAnnouncementUpdate = useCallback((payload) => {
+  const { action, data, announcement_id } = payload;
+  
+  setAnnouncements(prev => {
+    // 1. Handle deletion FIRST (uses announcement_id, not data)
+    if (action === "deleted") {
+      return prev.filter(a => a.id !== announcement_id);
     }
-  }, [selectedItem]);
+    
+    // 2. Safety check: ensure data exists before accessing it
+    if (!data) {
+      console.warn('⚠️ Received action without data:', action);
+      return prev;
+    }
+    
+    // 3. Now safe to access data.id
+    if (action === "created") {
+      const exists = prev.some(a => a.id === data.id);
+      return exists ? prev : [data, ...prev];
+    }
+    
+    if (action === "updated") {
+      return prev.map(a => a.id === data.id ? data : a);
+    }
+    
+    return prev;
+  });
+  
+  // 4. Update selected item safely
+  const incomingId = data?.id || announcement_id;
+  
+  if (selectedItem?.id === incomingId) {
+    if (action === "deleted") {
+      setSelectedItem(null);
+    } else if (data) {
+      setSelectedItem(data);
+    }
+  }
+}, [selectedItem]);
 
   const { isConnected } = useAnnouncementWebSocket(onAnnouncementUpdate);
 
@@ -46,8 +85,13 @@ export default function AnnouncementsList() {
   const fetchAnnouncements = async () => {
     try {
       const res = await api.get("announcements/");
+      console.log('📋 Fetched announcements:', res.data.length);
       setAnnouncements(res.data);
-    } finally { setLoading(false); }
+    } catch (err) {
+      console.error('Failed to fetch announcements:', err);
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const filtered = announcements.filter(a => 

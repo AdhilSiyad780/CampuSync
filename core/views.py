@@ -601,3 +601,24 @@ class LogoutView(APIView):
         
         return response
     
+
+
+# core/views.py
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def check_auth(request):
+    """Check if user is authenticated and return user data"""
+    user = request.user
+    return Response({
+        'authenticated': True,
+        'user': {
+            'id': user.id,
+            'email': user.email,
+            'fullname': getattr(user, 'fullname', user.username),
+            'user_type': getattr(user, 'user_type', None),
+        }
+    })

@@ -66,67 +66,79 @@ export default function AnnouncementsPage() {
   };
 
   // Handle real-time WebSocket updates
-  const handleAnnouncementUpdate = useCallback((data) => {
-    const { action, data: announcement } = data;
+  // Handle real-time WebSocket updates
+const handleAnnouncementUpdate = useCallback((payload) => {
+  const { action, data: announcement, announcement_id } = payload;
 
-    console.log('📢 Real-time update received:', action, announcement);
+  console.log('📢 Real-time update received:', action, announcement);
 
-    switch (action) {
-      case 'created':
-        // Add new announcement to the top of the list
-        setAnnouncements(prev => {
-          // Check if announcement already exists (prevent duplicates)
-          const exists = prev.some(item => item.id === announcement.id);
-          if (exists) return prev;
-          return [announcement, ...prev];
-        });
-        
-        // Show notifications
-        showBrowserNotification(
-          '📢 New Announcement!', 
-          announcement.title
-        );
-        showInAppNotification(`New announcement: ${announcement.title}`);
-        
-        // Play sound (optional)
-        playNotificationSound();
+  switch (action) {
+    case 'deleted':
+      // ✅ Handle deletion FIRST using announcement_id (not announcement.id)
+      setAnnouncements(prev => 
+        prev.filter(item => item.id !== announcement_id)
+      );
+      
+      // Close view if deleted item was selected
+      if (selectedItem?.id === announcement_id) {
+        setViewMode('idle');
+        setSelectedItem(null);
+      }
+      
+      showInAppNotification('An announcement was deleted');
+      break;
+
+    case 'created':
+      // ✅ Safety check before accessing announcement.id
+      if (!announcement) {
+        console.warn('⚠️ Received created action without data');
         break;
+      }
+      
+      // Add new announcement to the top of the list
+      setAnnouncements(prev => {
+        const exists = prev.some(item => item.id === announcement.id);
+        if (exists) return prev;
+        return [announcement, ...prev];
+      });
+      
+      // Show notifications
+      showBrowserNotification(
+        '📢 New Announcement!', 
+        announcement.title
+      );
+      showInAppNotification(`New announcement: ${announcement.title}`);
+      
+      // Play sound (optional)
+      playNotificationSound();
+      break;
 
-      case 'updated':
-        // Update existing announcement
-        setAnnouncements(prev => 
-          prev.map(item => 
-            item.id === announcement.id ? announcement : item
-          )
-        );
-        
-        // Update selected item if it's currently being viewed
-        if (selectedItem?.id === announcement.id) {
-          setSelectedItem(announcement);
-        }
-        
-        showInAppNotification(`Announcement updated: ${announcement.title}`);
+    case 'updated':
+      // ✅ Safety check before accessing announcement.id
+      if (!announcement) {
+        console.warn('⚠️ Received updated action without data');
         break;
+      }
+      
+      // Update existing announcement
+      setAnnouncements(prev => 
+        prev.map(item => 
+          item.id === announcement.id ? announcement : item
+        )
+      );
+      
+      // Update selected item if it's currently being viewed
+      if (selectedItem?.id === announcement.id) {
+        setSelectedItem(announcement);
+      }
+      
+      showInAppNotification(`Announcement updated: ${announcement.title}`);
+      break;
 
-      case 'deleted':
-        // Remove announcement from list
-        setAnnouncements(prev => 
-          prev.filter(item => item.id !== announcement.id)
-        );
-        
-        // Close view if deleted item was selected
-        if (selectedItem?.id === announcement.id) {
-          setViewMode('idle');
-          setSelectedItem(null);
-        }
-        
-        showInAppNotification('An announcement was deleted');
-        break;
-
-      default:
-        break;
-    }
-  }, [selectedItem]);
+    default:
+      break;
+  }
+}, [selectedItem]);
 
   // Connect to WebSocket
   const { isConnected, reconnect } = useAnnouncementWebSocket(handleAnnouncementUpdate);

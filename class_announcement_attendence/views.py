@@ -103,26 +103,27 @@ class AnnouncementListCreateView(generics.ListCreateAPIView):
             tenant=self.request.user.tenant
         )
         
-        # Broadcast the new announcement via WebSocket
         self.broadcast_announcement(announcement, 'created')
     
     def broadcast_announcement(self, announcement, action='created'):
-        """Broadcast announcement to all connected clients in the tenant"""
+        """Broadcast announcement via WebSocket"""
         channel_layer = get_channel_layer()
-        tenant_id = str(announcement.tenant.id)
+        tenant_id = announcement.tenant.id
+        group_name = f'announcements_tenant_{tenant_id}'  # ✅ CORRECT FORMAT
         
-        # Serialize the announcement
         serializer = AnnouncementSerializer(announcement)
         
+        print(f"📢 Broadcasting {action} to group: {group_name}")
+        print(f"📢 Data: {serializer.data}")
+        
         async_to_sync(channel_layer.group_send)(
-            f'announcements_{tenant_id}',
+            group_name,
             {
-                'type': 'announcement_created',
+                'type': 'announcement_message',
                 'action': action,
-                'announcement': serializer.data
+                'data': serializer.data,
             }
         )
-
 
 class AnnouncementDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = AnnouncementSerializer
@@ -137,33 +138,47 @@ class AnnouncementDetailView(generics.RetrieveUpdateDestroyAPIView):
     
     def perform_destroy(self, instance):
         announcement_id = instance.id
-        tenant_id = str(instance.tenant.id)
+        tenant_id = instance.tenant.id
+        
+        # Delete the announcement
         instance.delete()
         
         # Broadcast deletion
         channel_layer = get_channel_layer()
+        group_name = f'announcements_tenant_{tenant_id}'  # ✅ FIXED
+        
+        print(f"📢 Broadcasting deleted to group: {group_name}")
+        
         async_to_sync(channel_layer.group_send)(
-            f'announcements_{tenant_id}',
+            group_name,
             {
-                'type': 'announcement_deleted',
-                'announcement_id': announcement_id
+                'type': 'announcement_message',  # ✅ USE SAME TYPE
+                'action': 'deleted',
+                'announcement_id': announcement_id,
             }
         )
     
     def broadcast_announcement(self, announcement, action):
         """Broadcast announcement update"""
         channel_layer = get_channel_layer()
-        tenant_id = str(announcement.tenant.id)
+        tenant_id = announcement.tenant.id
+        group_name = f'announcements_tenant_{tenant_id}'  # ✅ CORRECT FORMAT
         
         serializer = AnnouncementSerializer(announcement)
         
+        print(f"📢 Broadcasting {action} to group: {group_name}")
+        print(f"📢 Data: {serializer.data}")
+        
         async_to_sync(channel_layer.group_send)(
-            f'announcements_{tenant_id}',
+            group_name,
             {
-                'type': 'announcement_updated',
-                'announcement': serializer.data
+                'type': 'announcement_message',
+                'action': action,
+                'data': serializer.data,
             }
         )
+
+
 
 class SubjectView(viewsets.ModelViewSet):
     serializer_class = SubjectSerializer
