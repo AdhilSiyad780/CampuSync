@@ -1,34 +1,29 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react"; // Added useEffect
 import { 
   LayoutDashboard, Users, BookOpen, ClipboardCheck, 
   Calendar, GraduationCap, MessageSquare, Settings, 
   LogOut, ChevronLeft, Menu, Bell, Search, TrendingUp, CheckCircle, AlertCircle,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
+import api from "../../api/axios"; // ✅ ADDED MISSING IMPORT
 
 export default function TeacherDashboard() {
-  
-
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
 
-  const user = JSON.parse(localStorage.getItem('user'))
-  if (user?.user_type !== 'teacher') {
-     navigate('/teacher/login')
-  }
+  
 
   // --- Sidebar Navigation Items ---
-  // --- Updated Sidebar Navigation Items ---
   const menuItems = [
     { name: "Overview", icon: <LayoutDashboard size={20} />, path: "/teacher/dashboard" },
-    { name: "Attendance", icon: <ClipboardCheck size={20} />, path: "/teacher/attendence" }, // Matches 'attendence' typo in App.jsx
+    { name: "Attendance", icon: <ClipboardCheck size={20} />, path: "/teacher/attendence" },
     { name: "Assignments", icon: <MessageSquare size={20} />, path: "/teacher/assignment" },
     { name: "Exams", icon: <GraduationCap size={20} />, path: "/teacher/exam" },
     { name: "Announcements", icon: <Bell size={20} />, path: "/teacher/announcement" },
-    // Keep 'My Classes' if you plan to add the route later, otherwise remove
     { name: "My Classes", icon: <BookOpen size={20} />, path: "/teacher/classes" }, 
   ];
+
   // --- Statistics Data ---
   const stats = [
     { name: "Total Students", value: "128", icon: <Users size={20}/>, light: "bg-blue-50", text: "text-blue-600" },
@@ -38,26 +33,33 @@ export default function TeacherDashboard() {
   ];
 
   const handleLogout = async () => {
-  try {
-    // 1. Hit the backend to clear HttpOnly cookies
-    await api.get('logout/'); 
-  } catch (err) {
-    console.error("Logout failed on server, but clearing local state anyway.");
-  } finally {
-    // 2. Clear the non-sensitive user data from local storage
-    localStorage.removeItem("user");
+    console.log("🚀 [Logout] Starting logout process...");
     
-    // 3. Navigate back to the landing or login page
-    navigate("/"); 
-  }
-};
+    try {
+      // ✅ Added leading slash to ensure hit to /api/logout/
+      const res = await api.post('/logout/'); 
+      console.log("📡 [Server] Cookies cleared successfully:", res.data);
+    } catch (err) {
+      console.group("❌ [Logout Error]");
+      console.error("Status:", err.response?.status || "No Response");
+      console.error("Detail:", err.response?.data || err.message);
+      console.groupEnd();
+    } finally {
+      console.log("🧹 [Storage] Cleaning up LocalStorage...");
+      localStorage.removeItem("user");
+      
 
+      
+      console.log("👋 [Navigation] Redirecting...");
+      // Using href is safer for logout to fully purge React state
+      navigate('/teacher/login')
+    }
+  };
+
+  // Rest of your JSX...
   return (
     <div className="flex min-h-screen bg-[#F8FAFC]">
-      
-      {/* --- SIDEBAR --- */}
       <aside className={`${sidebarOpen ? "w-72" : "w-20"} bg-white border-r border-slate-200 transition-all duration-300 flex flex-col fixed h-full z-50`}>
-        {/* Logo Area */}
         <div className="flex items-center gap-3 px-6 h-20 mb-4">
           <div className="bg-blue-600 p-2 rounded-xl text-white shadow-lg shadow-blue-200">
             <GraduationCap size={24} />
@@ -65,7 +67,6 @@ export default function TeacherDashboard() {
           {sidebarOpen && <span className="text-xl font-black text-slate-800 tracking-tight">CampuSync</span>}
         </div>
 
-        {/* Nav Links */}
         <nav className="flex-1 px-4 space-y-1">
           {menuItems.map((item) => {
             const isActive = location.pathname === item.path;
@@ -86,7 +87,6 @@ export default function TeacherDashboard() {
           })}
         </nav>
 
-        {/* Sidebar Footer */}
         <div className="p-4 border-t border-slate-100 space-y-1">
           <button onClick={() => navigate("/teacher/profile")} className="w-full flex items-center gap-4 px-4 py-3 rounded-2xl text-slate-500 hover:bg-slate-50 font-bold text-sm">
             <Settings size={20} />
@@ -98,7 +98,6 @@ export default function TeacherDashboard() {
           </button>
         </div>
 
-        {/* Collapse Toggle */}
         <button 
           onClick={() => setSidebarOpen(!sidebarOpen)}
           className="absolute -right-3 top-24 bg-white border border-slate-200 text-slate-400 p-1 rounded-full hover:text-blue-600 shadow-sm"
@@ -107,10 +106,7 @@ export default function TeacherDashboard() {
         </button>
       </aside>
 
-      {/* --- MAIN CONTENT AREA --- */}
       <main className={`flex-1 transition-all duration-300 ${sidebarOpen ? "ml-72" : "ml-20"}`}>
-        
-        {/* Top Header */}
         <header className="h-20 bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-40 px-8 flex items-center justify-between">
           <div className="flex items-center bg-slate-100 px-4 py-2 rounded-xl w-96">
             <Search size={18} className="text-slate-400" />
@@ -132,15 +128,12 @@ export default function TeacherDashboard() {
           </div>
         </header>
 
-        {/* Dashboard Body */}
         <div className="p-8 space-y-8">
-          {/* Welcome Text */}
           <section>
             <h1 className="text-3xl font-black text-slate-800">Teacher Dashboard</h1>
-            <p className="text-slate-500 font-medium">Tuesday, 13 January 2026</p>
+            <p className="text-slate-500 font-medium tracking-tight">February 2026</p>
           </section>
 
-          {/* Stats Grid */}
           <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {stats.map((stat, i) => (
               <div key={i} className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex items-center gap-5 hover:scale-[1.02] transition-transform cursor-default">
@@ -153,14 +146,11 @@ export default function TeacherDashboard() {
             ))}
           </section>
 
-          {/* Main Layout Grid */}
+          {/* Table and Insights sections... */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            
-            {/* Today's Classes */}
             <section className="lg:col-span-2 bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
-              <div className="p-8 border-b border-slate-100 flex items-center justify-between">
+               <div className="p-8 border-b border-slate-100 flex items-center justify-between">
                 <h3 className="text-lg font-bold text-slate-800">Upcoming Classes</h3>
-                <button className="text-xs font-bold text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors">View Schedule</button>
               </div>
               <div className="p-4 space-y-2">
                 {[
@@ -184,7 +174,6 @@ export default function TeacherDashboard() {
               </div>
             </section>
 
-            {/* Notifications / Announcements */}
             <section className="bg-[#1E293B] rounded-[2.5rem] p-8 text-white shadow-xl flex flex-col justify-between">
               <div>
                 <div className="bg-blue-500/20 text-blue-400 w-12 h-12 rounded-2xl flex items-center justify-center mb-6">
@@ -193,18 +182,7 @@ export default function TeacherDashboard() {
                 <h3 className="text-xl font-black mb-2">Class Insights</h3>
                 <p className="text-sm text-slate-400 font-medium leading-relaxed">Average class performance is up by 12% this week. Great job!</p>
               </div>
-              
-              <div className="space-y-3 mt-8">
-                <button className="w-full bg-white/5 hover:bg-white/10 border border-white/10 p-4 rounded-2xl text-left transition-all">
-                  <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">New Message</p>
-                  <p className="text-sm font-bold">Principal: Faculty meeting at 4 PM</p>
-                </button>
-                <button className="w-full bg-white/5 hover:bg-white/10 border border-white/10 p-4 rounded-2xl text-left transition-all text-xs font-bold text-slate-400 text-center uppercase tracking-widest">
-                  View All Notifications
-                </button>
-              </div>
             </section>
-
           </div>
         </div>
       </main>

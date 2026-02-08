@@ -5,6 +5,7 @@ import {
   PieChart, BarChart3, ChevronRight, LogOut, Menu, ChevronLeft, GraduationCap
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
+import api from "../../api/axios";
 
 export default function ParentDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -47,19 +48,27 @@ export default function ParentDashboard() {
   ];
 
   const handleLogout = async () => {
-  try {
-    // 1. Hit the backend to clear HttpOnly cookies
-    await api.get('logout/'); 
-  } catch (err) {
-    console.error("Logout failed on server, but clearing local state anyway.");
-  } finally {
-    // 2. Clear the non-sensitive user data from local storage
-    localStorage.removeItem("user");
+    console.log("🚀 [Logout] Starting logout process...");
     
-    // 3. Navigate back to the landing or login page
-    navigate("/"); 
-  }
-};
+    try {
+      const res = await api.post('/logout/'); 
+      console.log("📡 [Server] Cookies cleared successfully:", res.data);
+    } catch (err) {
+      console.group("❌ [Logout Error]");
+      console.error("Status:", err.response?.status || "No Response");
+      console.error("Detail:", err.response?.data || err.message);
+      console.groupEnd();
+    } finally {
+      console.log("🧹 [Storage] Cleaning up LocalStorage...");
+      localStorage.removeItem("user");
+      
+
+      
+      console.log("👋 [Navigation] Redirecting...");
+      // Using href is safer for logout to fully purge React state
+      navigate('/parent/login')
+    }
+  };
 
   return (
     <div className="flex min-h-screen bg-[#F8FAFC]">
