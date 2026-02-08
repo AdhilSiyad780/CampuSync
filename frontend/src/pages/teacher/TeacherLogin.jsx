@@ -3,13 +3,14 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { GraduationCap, Mail, Lock, Loader2, ArrowRight, ShieldCheck,AlertCircle } from "lucide-react";
 import api from "../../api/axios";
+import { useAuth } from "../../context/AuthContext";
 
 export default function TeacherLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-
+  const { checkAuth } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -30,9 +31,9 @@ export default function TeacherLogin() {
       // Unified storage to prevent "null" errors in your Guards
       const userObj = { ...res.data.user, user_type: 'teacher' };
       localStorage.setItem("user", JSON.stringify(userObj));
-      localStorage.setItem("access", res.data.access);
-      localStorage.setItem("refresh", res.data.refresh);
+      await checkAuth();
 
+      
       navigate("/teacher/dashboard");
     } catch (err) {
       const data = err.response?.data;

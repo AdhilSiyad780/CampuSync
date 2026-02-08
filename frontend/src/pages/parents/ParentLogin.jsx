@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Mail, Lock, LogIn, GraduationCap, ShieldCheck } from "lucide-react";
 import api from "../../api/axios";
+import { useAuth } from "../../context/AuthContext";
 
 export default function ParentLogin() {
   const [email, setEmail] = useState("");
@@ -9,6 +10,7 @@ export default function ParentLogin() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const  {checkAuth} = useAuth()
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,9 +25,9 @@ export default function ParentLogin() {
         email: email.trim(),
         password,
       });
+      await  checkAuth();
 
-      localStorage.setItem("access", res.data.access);
-      localStorage.setItem("refresh", res.data.refresh);
+      
       localStorage.setItem("parent_fullname", res.data.user.fullname || "");
       localStorage.setItem("parent_email", res.data.user.email || "");
 

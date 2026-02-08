@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { 
   BookOpen, Calendar, ClipboardList, GraduationCap, Menu,
   Clock, MapPin, User, Bell, CheckCircle2, 
-  BrainCircuit, MessageSquare, LogOut, LayoutDashboard 
+  BrainCircuit, MessageSquare, LogOut, LayoutDashboard ,Megaphone
 } from "lucide-react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 
@@ -53,14 +53,36 @@ export default function StudentDashboard() {
   ];
 
   const menuItems = [
-    { name: "Dashboard", icon: <LayoutDashboard size={20} />, path: "/student/dashboard" },
-    { name: "Profile", icon: <User size={20} />, path: "/student/profile" },
-    { name: "Assignments", icon: <ClipboardList size={20} />, path: "/student/assignments" },
-    { name: "Time Table", icon: <Clock size={20} />, path: "/student/timetable" },
-    { name: "Exams & Results", icon: <GraduationCap size={20} />, path: "/student/exams" },
-    { name: "Fees", icon: <BookOpen size={20} />, path: "/student/fees" },
-    { name: "Attendance", icon: <CheckCircle2 size={20} />, path: "/student/attendance" },
-    { name: "AI Study Helper", icon: <BrainCircuit size={20} />, path: "/student/ai-helper", special: true },
+    { 
+      name: "Dashboard", 
+      icon: <LayoutDashboard size={20} />, 
+      path: "/student/dashboard" 
+    },
+    { 
+      name: "Profile", 
+      icon: <User size={20} />, 
+      path: "/student/profile" 
+    },
+    { 
+      name: "Assignments", 
+      icon: <ClipboardList size={20} />, 
+      path: "/student/assignment" 
+    },
+    { 
+      name: "Attendance", 
+      icon: <CheckCircle2 size={20} />, 
+      path: "/student/attendence" // Matches your "attendence" typo in App.jsx
+    },
+    { 
+      name: "Exams", 
+      icon: <GraduationCap size={20} />, 
+      path: "/student/exams" 
+    },
+    { 
+      name: "Announcements", 
+      icon: <Megaphone size={20} />, 
+      path: "/student/announcement" 
+    },
   ];
 
   return (

@@ -2,19 +2,22 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import api from "../../api/axios";
+import { useAuth } from "../../context/AuthContext";
 
 export default function StudentLoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
+  // ✅ FIX: Destructure checkAuth from the hook
+  const { checkAuth, user: contextUser } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg("");
+    console.log("🚀 [Login] Starting student login for:", email.trim());
 
     const trimmedEmail = email.trim();
     if (!trimmedEmail || !password) {
@@ -30,36 +33,40 @@ export default function StudentLoginPage() {
         password,
       });
 
-      // store tokens
-      localStorage.setItem("access", res.data.access);
-      localStorage.setItem("refresh", res.data.refresh);
-      localStorage.setItem("student_fullname", res.data.user.fullname);
-      localStorage.setItem("student_email", res.data.user.email);
-      localStorage.setItem("student_user_type", res.data.user.user_type);
+      console.log("📡 [Server] Response received:", res.data);
 
-      // optional: store profile
-      if (res.data.profile) {
-        localStorage.setItem("student_profile", JSON.stringify(res.data.profile));
+      if (!res.data.user) {
+        console.error("⚠️ [Logic] Login successful but no user data found in response!");
       }
 
-      // redirect to student dashboard (create later)
+      // 1. Sync LocalStorage
+      console.log("💾 [Storage] Saving student data to localStorage...");
+      localStorage.setItem("user", JSON.stringify(res.data.user));
+      localStorage.setItem("student_fullname", res.data.user.fullname);
+
+      // 2. Sync Context
+      console.log("🔄 [Context] Triggering checkAuth() to update global state...");
+      await checkAuth();
+      
+      // 3. Verify before navigating
+      console.log("🛡️ [Verify] Current Context User:", contextUser);
+
+      console.log("✅ [Navigation] Success. Moving to /student/dashboard");
       navigate("/student/dashboard");
+
     } catch (err) {
-      console.error("STUDENT LOGIN ERROR:", err.response?.data || err.message);
+      // LOG THE FULL ERROR OBJECT
+      console.group("❌ [Login Error]");
+      console.error("Status:", err.response?.status);
+      console.error("Data:", err.response?.data);
+      console.error("Message:", err.message);
+      console.groupEnd();
+
       const data = err.response?.data;
       if (typeof data === "string") {
         setErrorMsg(data);
-      } else if (data?.non_field_errors) {
-        setErrorMsg(data.non_field_errors[0]);
       } else if (data?.detail) {
         setErrorMsg(data.detail);
-      } else if (data && typeof data === "object") {
-        const firstKey = Object.keys(data)[0];
-        if (firstKey && Array.isArray(data[firstKey])) {
-          setErrorMsg(data[firstKey][0]);
-        } else {
-          setErrorMsg("Login failed. Check your credentials.");
-        }
       } else {
         setErrorMsg("Login failed. Check your credentials.");
       }
@@ -67,6 +74,8 @@ export default function StudentLoginPage() {
       setLoading(false);
     }
   };
+
+  // ... (rest of your return JSX stays the same)
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100">

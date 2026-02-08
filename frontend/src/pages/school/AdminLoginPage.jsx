@@ -6,13 +6,14 @@ import {
   AlertCircle, ShieldCheck, ArrowRight 
 } from "lucide-react";
 import api from "../../api/axios";
+import { useAuth } from "../../context/AuthContext";
 
 function AdminLoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-
+  const {checkAuth} = useAuth()
   const navigate = useNavigate();
 
   // ---------------- GOOGLE LOGIN ----------------
@@ -56,10 +57,16 @@ function AdminLoginPage() {
 
     try {
       setLoading(true);
+      console.log('reached admin login')
       const res = await api.post("/login/", { email: email.trim(), password });
-
-      localStorage.setItem("access", res.data.access);
-      localStorage.setItem("refresh", res.data.refresh);
+      const userData = res.data?.user;
+      console.log(userData.user_type)
+      await checkAuth()
+      if (!userData) {
+        setError("Invalid response from server.");
+        return;
+      }
+     
       localStorage.setItem("is_setup_complete", String(res.data.user.is_setup_complete));
       localStorage.setItem("admin_fullname", res.data.user.fullname);
 
@@ -72,6 +79,7 @@ function AdminLoginPage() {
       }
     } catch (err) {
       const data = err.response?.data;
+      console.log(err.response?.data)
       setErrorMsg(data?.detail || data?.non_field_errors?.[0] || "Invalid credentials.");
     } finally {
       setLoading(false);

@@ -14,11 +14,36 @@ export default function ParentDashboard() {
 
   // Navigation Items
   const menuItems = [
-    { name: "Dashboard", icon: <LayoutDashboard size={20} />, path: "/parent/dashboard" },
-    { name: "Attendance", icon: <CheckCircle size={20} />, path: "/parent/attendance" },
-    { name: "Exams & Marks", icon: <BookOpen size={20} />, path: "/parent/exams" },
-    { name: "Fees & Payments", icon: <CreditCard size={20} />, path: "/parent/fees" },
-    { name: "Messages", icon: <MessageSquare size={20} />, path: "/parent/messages" },
+    { 
+      name: "Dashboard", 
+      icon: <LayoutDashboard size={20} />, 
+      path: "/parent/dashboard" 
+    },
+    { 
+      name: "Announcements", 
+      icon: <Bell size={20} />, 
+      path: "/parent/announcement" 
+    },
+    { 
+      name: "Attendance", 
+      icon: <CheckCircle size={20} />, 
+      path: "/parent/attendance" 
+    },
+    { 
+      name: "Exams & Marks", 
+      icon: <BookOpen size={20} />, 
+      path: "/parent/exams" 
+    },
+    { 
+      name: "Fees & Finance", 
+      icon: <CreditCard size={20} />, 
+      path: "/parent/finance" 
+    },
+    { 
+      name: "Messages", 
+      icon: <MessageSquare size={20} />, 
+      path: "/chat" // Synced with your /chat route
+    },
   ];
 
   const handleLogout = async () => {

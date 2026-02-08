@@ -1,12 +1,15 @@
 import { useState } from "react";
-import api from "../api/axios";
+import api from "../../api/axios";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
+
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const { checkAuth } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -24,8 +27,16 @@ export default function LoginPage() {
       // 1. Check if the user is actually a superadmin
       if (userData.user_type === 'superadmin') {
         // Save non-sensitive info for the UI
-      localStorage.setItem("user", JSON.stringify(res.data.user));        
-            navigate("/superadmin"); 
+      localStorage.setItem("user", JSON.stringify(userData));
+        
+        // ✅ KEY FIX: Update AuthContext by calling checkAuth
+        // This ensures that RoleProtectedRoute sees the authenticated user
+        await checkAuth();
+        
+        console.log("✅ Login successful, navigating to /superadmin");
+        
+        // Navigate to superadmin dashboard
+        navigate("/superadmin");
       } else {
         // 2. Security: If they aren't a superadmin, don't let them in!
         // We should also ideally call a logout endpoint here to clear the cookie

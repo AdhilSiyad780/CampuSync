@@ -17,13 +17,16 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuth = async () => {
     try {
-      const response = await api.get('/auth/check/');
+      const response = await api.get('/auth/check/',{ _skipInterceptor: true });
       if (response.data.authenticated) {
         setUser(response.data.user);
+        
         setIsAuthenticated(true);
+        console.log('==================================auth success',response.data.user.user_type)
       } else {
         setUser(null);
         setIsAuthenticated(false);
+        console.log('failed==================================auth')
       }
     } catch (error) {
       setUser(null);
@@ -38,8 +41,10 @@ export const AuthProvider = ({ children }) => {
       const response = await api.post('/auth/login/', { email, password });
       setUser(response.data.user);
       setIsAuthenticated(true);
+      console.log(user)
       return { success: true, data: response.data };
     } catch (error) {
+      
       return { 
         success: false, 
         error: error.response?.data?.error || 'Login failed' 

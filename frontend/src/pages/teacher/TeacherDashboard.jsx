@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { 
   LayoutDashboard, Users, BookOpen, ClipboardCheck, 
   Calendar, GraduationCap, MessageSquare, Settings, 
-  LogOut, ChevronLeft, Menu, Bell, Search, TrendingUp, CheckCircle, AlertCircle
+  LogOut, ChevronLeft, Menu, Bell, Search, TrendingUp, CheckCircle, AlertCircle,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -19,15 +19,16 @@ export default function TeacherDashboard() {
   }
 
   // --- Sidebar Navigation Items ---
+  // --- Updated Sidebar Navigation Items ---
   const menuItems = [
     { name: "Overview", icon: <LayoutDashboard size={20} />, path: "/teacher/dashboard" },
-    { name: "My Classes", icon: <BookOpen size={20} />, path: "/teacher/classes" },
-    { name: "Attendance", icon: <ClipboardCheck size={20} />, path: "/teacher/attendance" },
-    { name: "Students", icon: <Users size={20} />, path: "/teacher/students" },
-    { name: "Schedule", icon: <Calendar size={20} />, path: "/teacher/schedule" },
-    { name: "Gradebook", icon: <GraduationCap size={20} />, path: "/teacher/grades" },
+    { name: "Attendance", icon: <ClipboardCheck size={20} />, path: "/teacher/attendence" }, // Matches 'attendence' typo in App.jsx
+    { name: "Assignments", icon: <MessageSquare size={20} />, path: "/teacher/assignment" },
+    { name: "Exams", icon: <GraduationCap size={20} />, path: "/teacher/exam" },
+    { name: "Announcements", icon: <Bell size={20} />, path: "/teacher/announcement" },
+    // Keep 'My Classes' if you plan to add the route later, otherwise remove
+    { name: "My Classes", icon: <BookOpen size={20} />, path: "/teacher/classes" }, 
   ];
-
   // --- Statistics Data ---
   const stats = [
     { name: "Total Students", value: "128", icon: <Users size={20}/>, light: "bg-blue-50", text: "text-blue-600" },

@@ -20,7 +20,7 @@ export default function AdminDashboard() {
   const handleLogout = async () => {
   try {
     // 1. Hit the backend to clear HttpOnly cookies
-    await api.get('logout/'); 
+    await api.post('logout/'); 
   } catch (err) {
     console.error("Logout failed on server, but clearing local state anyway.");
   } finally {
@@ -136,18 +136,18 @@ export default function AdminDashboard() {
     );
   }
 
+  // Updated Navigation Items to match your routes
   const menuItems = [
-  { name: "Dashboard", icon: <LayoutDashboard size={20} />, path: "/dashboard" },
-  { name: "Students", icon: <Users size={20} />, path: "/students" },
-  { name: "Teachers", icon: <UserCog size={20} />, path: "/teachers" },
-  { name: "Parents", icon: <Users size={20} />, path: "/parents" }, 
-  { name: "Classes", icon: <School size={20} />, path: "/classes" },
-  { name: "Timetable", icon: <Clock size={20} />, path: "/timetable" },
-  { name: "Announcements", icon: <Megaphone size={20} />, path: "/announcements" },
-  { name: "Finance", icon: <CreditCard size={20} />, path: "/finance" },
-  { name: "Profile Settings", icon: <Settings size={20} />, path: "/profile" },
-];
-
+    { name: "Dashboard", icon: <LayoutDashboard size={20} />, path: "/dashboard" },
+    { name: "Students", icon: <Users size={20} />, path: "/students" },
+    { name: "Teachers", icon: <UserCog size={20} />, path: "/teachers" },
+    { name: "Parents", icon: <Users size={20} />, path: "/parents" }, 
+    { name: "Classes", icon: <School size={20} />, path: "/classes" },
+    { name: "Timetable", icon: <Clock size={20} />, path: "/timetable" },
+    { name: "Announcements", icon: <Megaphone size={20} />, path: "/announcements" },
+    { name: "Finance", icon: <CreditCard size={20} />, path: "/finance" },
+    { name: "Profile", icon: <Settings size={20} />, path: "/profile" },
+  ];
   return (
     <div className="flex min-h-screen bg-[#F8FAFC]">
       {/* SIDEBAR */}

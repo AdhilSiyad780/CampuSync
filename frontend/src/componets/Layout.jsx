@@ -2,6 +2,8 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { toggleDarkMode } from "../store/ThemeSlice";
+import api from "../api/axios";
+
 
 function SideNavLink({ to, icon, label }) {
   return (
@@ -25,7 +27,19 @@ export default function Layout() {
   const darkMode = useSelector((state) => state.theme.darkMode);
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const handleLogout = async () => {
+  try {
+    // 1. Hit the backend to clear HttpOnly cookies
+    await api.post('logout/'); 
+    navigate("/"); 
+    localStorage.removeItem("user");
 
+  } catch (err) {
+    console.error("Logout failed on server, but clearing local state anyway.");
+  } finally {
+    console.log('api for logout called')
+  }
+};
   // Later you can replace with real data from profile API
   const userName = "Super Admin";
   const userEmail = "superadmin@example.com";
@@ -68,10 +82,7 @@ export default function Layout() {
           <button
             type="button"
             className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-red-200 hover:bg-red-500/20"
-            onClick={() => {
-              localStorage.removeItem("access");
-              navigate("/");
-            }}
+            onClick={handleLogout}
           >
             <span>🚪</span>
             <span>Logout</span>

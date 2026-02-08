@@ -123,7 +123,6 @@ class AdminSignupView(APIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         refresh = RefreshToken.for_user(user)
-        access = refresh.access_token
         tenant = user.tenant
         data = {
                 
@@ -404,7 +403,7 @@ class StudentLoginView(APIView):
 
         user = serializer.validated_data['user']
         refresh = RefreshToken.for_user(user)
-        access = refresh.access_token
+      
         student_profile = getattr(user,'studentprofile',None)
         profile_data = {}
         if  student_profile:
@@ -416,8 +415,8 @@ class StudentLoginView(APIView):
                 "roll_number": getattr(student_profile, "roll_number", None),
             }
         data  = {
-            'access':str(access),
-            'refresh':str(refresh),
+            'authenticated': True,
+         
             'user':{
                 'id':user.id,
                 'fullname':user.fullname,
@@ -440,7 +439,7 @@ class StudentLoginView(APIView):
             key="refresh_token",
             value=str(refresh),
             httponly=True,
-            samesite="None",
+            samesite="Lax",
             secure=False,
             path="/",
         )
@@ -478,6 +477,7 @@ class TeacherLoginView(APIView):
                 "roll_number": getattr(student_profile, "roll_number", None),
             }
         data  = {
+            'authenticated': True,
             'user':{
                 'id':user.id,
                 'fullname':user.fullname,
@@ -520,6 +520,28 @@ class TenantListForSuperadminView(generics.ListAPIView):
     serializer_class = TenantWithPlanSerializer
     permission_classes = [IsAuthenticated, IsSuperAdminOrAdmin]  # tighten if needed
 
+class ToggleTenantBlockView(APIView):
+    # Ensure only SuperAdmins can hit this
+    permission_classes = [IsAuthenticated] 
+
+    def post(self, request, pk):
+        try:
+            tenant = Tenant.objects.get(pk=pk)
+            
+            # If the tenant is currently suspended, unblock them (set to active)
+            # Otherwise, block them (set to suspended)
+            if tenant.status == "suspended":
+                tenant.status = "active"
+                message = "Tenant has been unblocked."
+            else:
+                tenant.status = "suspended"
+                message = "Tenant has been blocked."
+            
+            tenant.save()
+            return Response({"message": message, "new_status": tenant.status}, status=status.HTTP_200_OK)
+        except Tenant.DoesNotExist:
+            return Response({"error": "Tenant not found."}, status=status.HTTP_404_NOT_FOUND)
+
 
 class ParentLoginView(APIView):
     permission_classes = [AllowAny]
@@ -544,8 +566,7 @@ class ParentLoginView(APIView):
             }
 
         data = {
-            "access": access_token,
-            "refresh": refresh_token,
+           
             "user": {
                 "id": user.id,
                 "fullname": getattr(user, "fullname", ""),
@@ -576,28 +597,37 @@ class ParentLoginView(APIView):
         )
         return response
     
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework.permissions import AllowAny
 
 class LogoutView(APIView):
-    # You want to ensure only logged-in users can hit this, 
-    # but AllowAny is also fine if you just want to wipe cookies regardless.
     permission_classes = [AllowAny]
 
     def post(self, request):
         response = Response({"detail": "Successfully logged out."}, status=status.HTTP_200_OK)
         
-        # 1. Clear the Access Cookie
+        # Mirroring your Login setup exactly to ensure the browser finds the cookies
+        # cookie_params = {
+        #     "path": "/",
+        #     "httponly": True,
+        #     "samesite": "Lax",
+        #     "secure": False, # Switch to True in production with HTTPS
+        # }
+
         response.delete_cookie(
-            key='access_token', # Must match the key name in your LoginView
-            path='/',
-            samesite='Lax'
+            "access_token",
+            path="/",
+            samesite="Lax",
         )
-        
-        # 2. Clear the Refresh Cookie
+
         response.delete_cookie(
-            key='refresh_token',
-            path='/',
-            samesite='Lax'
+            "refresh_token",
+            path="/",
+            samesite="Lax",
         )
+
         
         return response
     
@@ -609,16 +639,26 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def check_auth(request):
-    """Check if user is authenticated and return user data"""
-    user = request.user
+    print(f"Session ID in cookie: {request.COOKIES.get('sessionid', 'NONE')}")
+    print(f"User authenticated: {request.user.is_authenticated}")
+    print(f"User: {request.user}")
+    """Check if user is authenticated and return user data safely"""
+    if request.user.is_authenticated:
+        user = request.user
+        return Response({
+            'authenticated': True,
+            'user': {
+                'id': user.id,
+                'email': user.email,
+                'fullname': getattr(user, 'fullname', user.username),
+                'user_type': getattr(user, 'user_type', None),
+            }
+        }, status=200)
+    
+    # This is the important part: return a clean response for guests
     return Response({
-        'authenticated': True,
-        'user': {
-            'id': user.id,
-            'email': user.email,
-            'fullname': getattr(user, 'fullname', user.username),
-            'user_type': getattr(user, 'user_type', None),
-        }
-    })
+        'authenticated': False,
+        'user': None
+    }, status=200)

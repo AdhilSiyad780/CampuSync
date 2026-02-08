@@ -56,7 +56,6 @@ class SuperAdminProfileUpdateSerializer(serializers.ModelSerializer):
 # ------------------------------------admin(User) authentication-------------------------------------------------------
 
 
-
 class AdminSignupSendOTPSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
@@ -324,6 +323,7 @@ class AdminLoginSerializer(serializers.Serializer):
         tenant = getattr(user, "tenant", None)
 
         return {
+            'authenticated': True,
             "user": {
                 "id": user.id,
                 "email": user.email,
