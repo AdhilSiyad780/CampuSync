@@ -17,9 +17,8 @@ export default function StudentsPage() {
   const [success, setSuccess] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
-  const [currentPage,setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1);
   
-
   const [form, setForm] = useState({
     id: null,
     fullname: "",
@@ -27,13 +26,11 @@ export default function StudentsPage() {
     phone: "",
     DOB: "",
     gender: "",
-    admission_number: "",
     admission_date: "",
     blood_group: "",
-    school_class: "", // Matches Django ForeignKey field name
+    school_class: "",
     guardian_name: "",
     guardian_number: "",
-    roll_number: "",
     student_contact: "",
     id_proof_url: "",
   });
@@ -54,7 +51,7 @@ export default function StudentsPage() {
       
       setStudents(studentsRes.data || []);
       setClasses(classesRes.data || []);
-      setCurrentPage(page)
+      setCurrentPage(page);
     } catch (err) {
       if (err.response?.status === 401) {
         localStorage.removeItem("access");
@@ -68,16 +65,15 @@ export default function StudentsPage() {
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
-    setError(""); setSuccess("");
+    setError(""); 
+    setSuccess("");
   };
 
   const resetLocalForm = () => {
     setForm({
       id: null, fullname: "", email: "", phone: "", DOB: "", gender: "",
-      admission_number: "", admission_date: "", blood_group: "",
-      school_class: "", // Updated
-      guardian_name: "", guardian_number: "",
-      roll_number: "", student_contact: "", id_proof_url: "",
+      admission_date: "", blood_group: "", school_class: "",
+      guardian_name: "", guardian_number: "", student_contact: "", id_proof_url: "",
     });
   };
 
@@ -90,9 +86,19 @@ export default function StudentsPage() {
     }
 
     setForm({ 
-      ...student, 
+      id: student.id,
+      fullname: student.fullname,
+      email: student.email,
+      phone: student.phone || "",
+      DOB: student.DOB || "",
+      gender: student.gender || "",
       admission_date: admissionDateValue,
-      school_class: student.school_class || "" // Ensure we map the class ID correctly
+      blood_group: student.blood_group || "",
+      school_class: student.school_class || "",
+      guardian_name: student.guardian_name || "",
+      guardian_number: student.guardian_number || "",
+      student_contact: student.student_contact || "",
+      id_proof_url: student.id_proof_url || "",
     });
     setIsFormOpen(true);
     setSelectedStudent(null);
@@ -101,28 +107,24 @@ export default function StudentsPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSaving(true); setError(""); setSuccess("");
-    console.log("Payload being sent to Django:", form);
+    setSaving(true); 
+    setError(""); 
+    setSuccess("");
 
-    
     try {
       if (form.id) {
         await api.put(`students/${form.id}/`, form);
         setSuccess("Student profile updated.");
       } else {
-        await api.post("students/", form);
-        setSuccess("New student enrolled.");
+        const response = await api.post("students/", form);
+        setSuccess(`New student enrolled! Admission No: ${response.data.admission_number}, Roll No: ${response.data.roll_number}`);
       }
-      await loadData();
+      await loadData(currentPage);
       setIsFormOpen(false);
       resetLocalForm();
     } catch (err) {
-      console.error("Save error:", err.response?.data);
       const serverErrors = err.response?.data;
-      const errorMsg = serverErrors?.email?.[0] || 
-                       serverErrors?.admission_number?.[0] || 
-                       serverErrors?.school_class?.[0] ||
-                       "Failed to save student. Please verify required fields.";
+      const errorMsg = serverErrors?.email?.[0] || serverErrors?.school_class?.[0] || serverErrors?.non_field_errors?.[0] || "Failed to save student.";
       setError(errorMsg);
     } finally {
       setSaving(false);
@@ -156,10 +158,10 @@ export default function StudentsPage() {
           </button>
         </div>
 
-        {success && <div className="p-4 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-2xl text-sm font-bold animate-in fade-in slide-in-from-top-2">{success}</div>}
-        {error && <div className="p-4 bg-red-50 border border-red-100 text-red-700 rounded-2xl text-sm font-bold animate-in fade-in slide-in-from-top-2">{error}</div>}
+        {success && <div className="p-4 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-2xl text-sm font-bold">{success}</div>}
+        {error && <div className="p-4 bg-red-50 border border-red-100 text-red-700 rounded-2xl text-sm font-bold">{error}</div>}
 
-        {/* EXPANDABLE ENROLLMENT FORM */}
+        {/* ENROLLMENT FORM */}
         {isFormOpen && (
           <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden animate-in slide-in-from-top-4 duration-500">
             <div className="h-24 bg-gradient-to-r from-blue-600 to-indigo-700 flex items-center px-8">
@@ -172,10 +174,11 @@ export default function StudentsPage() {
             <form onSubmit={handleSubmit} className="p-8 grid grid-cols-1 lg:grid-cols-12 gap-10">
               <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <h4 className="md:col-span-2 text-xs font-black text-blue-600 uppercase tracking-widest border-b pb-2">Personal Information</h4>
-                <InputGroup label="Full Name *" name="fullname" value={form.fullname} onChange={handleChange} icon={<User size={18}/>} />
-                <InputGroup label="Email Address *" name="email" value={form.email} onChange={handleChange} icon={<Mail size={18}/>} type="email" />
+                <InputGroup label="Full Name *" name="fullname" value={form.fullname} onChange={handleChange} icon={<User size={18}/>} required />
+                <InputGroup label="Email Address *" name="email" value={form.email} onChange={handleChange} icon={<Mail size={18}/>} type="email" required />
                 <InputGroup label="Phone Number" name="phone" value={form.phone} onChange={handleChange} icon={<Phone size={18}/>} />
-                <InputGroup label="Date of Birth *" name="DOB" value={form.DOB} onChange={handleChange} icon={<Calendar size={18}/>} type="date" />
+                <InputGroup label="Date of Birth *" name="DOB" value={form.DOB} onChange={handleChange} icon={<Calendar size={18}/>} type="date" required />
+                
                 <div className="space-y-2">
                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Gender</label>
                    <select name="gender" value={form.gender} onChange={handleChange} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/10 transition-all">
@@ -185,37 +188,71 @@ export default function StudentsPage() {
                       <option value="other">Other</option>
                    </select>
                 </div>
-                <InputGroup label="Blood Group" name="blood_group" value={form.blood_group} onChange={handleChange} icon={<Droplets size={18}/>} />
+
+                {/* BLOOD GROUP DROPDOWN */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Blood Group</label>
+                  <div className="relative flex items-center">
+                    <Droplets className="absolute left-4 text-slate-300" size={18} />
+                    <select 
+                      name="blood_group" 
+                      value={form.blood_group} 
+                      onChange={handleChange} 
+                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/10 transition-all appearance-none"
+                    >
+                      <option value="">Select Group</option>
+                      {["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"].map(group => (
+                        <option key={group} value={group}>{group}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
 
                 <h4 className="md:col-span-2 text-xs font-black text-blue-600 uppercase tracking-widest border-b pb-2 mt-4">Academic Details</h4>
-                <InputGroup label="Admission No *" name="admission_number" value={form.admission_number} onChange={handleChange} icon={<Hash size={18}/>} />
                 <InputGroup label="Admission Date" name="admission_date" value={form.admission_date} onChange={handleChange} icon={<Calendar size={18}/>} type="datetime-local" />
                 
-                {/* Class Dropdown */}
                 <div className="space-y-2">
                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Class *</label>
                    <div className="relative flex items-center">
-                      <div className="absolute left-4 text-slate-300">
-                        <LayoutGrid size={18}/>
-                      </div>
+                      <div className="absolute left-4 text-slate-300"><LayoutGrid size={18}/></div>
                       <select 
                         name="school_class" 
                         value={form.school_class} 
                         onChange={handleChange} 
                         className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/10 transition-all"
+                        required
                       >
                         <option value="">Select Class</option>
-                        {classes.results.map((cls) => (
-                          <option key={cls.id} value={cls.id}>
-                            {cls.class_name} - {cls.division}
-                          </option>
+                        {classes.results?.map((cls) => (
+                          <option key={cls.id} value={cls.id}>{cls.class_name} - {cls.division}</option>
                         ))}
                       </select>
                    </div>
                 </div>
-                
-                <InputGroup label="Roll Number" name="roll_number" value={form.roll_number} onChange={handleChange} icon={<Hash size={18}/>} type="number" />
-                <InputGroup label="ID Proof URL" name="id_proof_url" value={form.id_proof_url} onChange={handleChange} icon={<FileText size={18}/>} />
+
+                {/* ID PROOF DEVICE SELECTOR */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">ID Proof Document</label>
+                  <div className="relative">
+                    <input 
+                      type="file" 
+                      id="id_proof_upload"
+                      className="hidden" 
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (file) setForm({ ...form, id_proof_url: file.name });
+                      }} 
+                    />
+                    <button 
+                      type="button"
+                      onClick={() => document.getElementById('id_proof_upload').click()}
+                      className="w-full bg-slate-50 border border-slate-100 border-dashed rounded-2xl px-4 py-3.5 text-sm font-bold text-slate-500 flex items-center justify-center gap-2 hover:bg-slate-100 transition-all"
+                    >
+                      <FileText size={18} />
+                      {form.id_proof_url ? `Selected: ${form.id_proof_url}` : "Choose File from Device"}
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <div className="lg:col-span-4 space-y-6">
@@ -227,16 +264,7 @@ export default function StudentsPage() {
                 </div>
                 
                 <button type="submit" disabled={saving} className="w-full bg-[#1E293B] text-white py-4 rounded-2xl font-black shadow-xl flex items-center justify-center gap-3 hover:bg-slate-800 transition-all disabled:opacity-60">
-                   {saving ? (
-                     <>
-                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                       Processing...
-                     </>
-                   ) : (
-                     <>
-                       <Save size={18}/> {form.id ? "Update Profile" : "Enroll Student"}
-                     </>
-                   )}
+                   {saving ? "Processing..." : <><Save size={18}/> {form.id ? "Update Profile" : "Enroll Student"}</>}
                 </button>
               </div>
             </form>
@@ -245,106 +273,56 @@ export default function StudentsPage() {
 
         {/* STUDENT GRID */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {students.length === 0 ? (
-            <div className="md:col-span-2 lg:col-span-3 p-12 text-center bg-white rounded-[2.5rem] border-2 border-dashed border-slate-200">
-              <GraduationCap size={48} className="mx-auto text-slate-300 mb-4" />
-              <h3 className="text-lg font-bold text-slate-600 mb-2">No Students Yet</h3>
-              <p className="text-sm text-slate-400">Enroll your first student using the form above</p>
+          {students.results?.map((s) => (
+            <div key={s.id} className="bg-white rounded-[2.5rem] border border-slate-200 p-6 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
+               <div className="flex justify-between items-start mb-6">
+                  <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-xl font-black">
+                    {s.fullname.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setSelectedStudent(s)} className="p-2.5 bg-slate-50 text-slate-400 hover:text-blue-600 rounded-xl transition-all"><Eye size={18}/></button>
+                    <button onClick={() => handleEdit(s)} className="p-2.5 bg-slate-50 text-slate-400 hover:text-indigo-600 rounded-xl transition-all"><Edit size={18}/></button>
+                  </div>
+               </div>
+               
+               <h4 className="text-xl font-black text-slate-800 tracking-tight">{s.fullname}</h4>
+               <div className="flex flex-wrap gap-2 mt-2">
+                  <span className="px-2.5 py-1 bg-slate-100 text-slate-600 text-[9px] font-black rounded-lg uppercase">Roll: {s.roll_number || 'N/A'}</span>
+                  <span className="px-2.5 py-1 bg-blue-50 text-blue-600 text-[9px] font-black rounded-lg uppercase">
+                    {s.class_name ? `${s.class_name} - ${s.division}` : 'No Class'}
+                  </span>
+               </div>
             </div>
-          ) : (
-            students.results.map((s) => (
-              <div key={s.id} className="bg-white rounded-[2.5rem] border border-slate-200 p-6 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
-                 <div className="flex justify-between items-start mb-6">
-                    <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-xl font-black">
-                      {s.fullname.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="flex gap-2">
-                      <button onClick={() => { setSelectedStudent(s); }} className="p-2.5 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"><Eye size={18}/></button>
-                      <button onClick={() => handleEdit(s)} className="p-2.5 bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"><Edit size={18}/></button>
-                    </div>
-                 </div>
-                 
-                 <h4 className="text-xl font-black text-slate-800 tracking-tight">{s.fullname}</h4>
-                 <div className="flex flex-wrap gap-2 mt-2">
-                    <span className="px-2.5 py-1 bg-slate-100 text-slate-600 text-[9px] font-black rounded-lg uppercase">Roll: {s.roll_number || 'N/A'}</span>
-                    <span className="px-2.5 py-1 bg-blue-50 text-blue-600 text-[9px] font-black rounded-lg uppercase">
-                      {s.class_name ? `${s.class_name} - ${s.division}` : 'No Class'}
-                    </span>
-                 </div>
-                 
-                 <div className="mt-6 pt-6 border-t border-slate-50 space-y-3">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-slate-400">Admission No</span>
-                      <span className="font-black text-slate-700">{s.admission_number}</span>
-                    </div>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-slate-400">Guardian</span>
-                      <span className="font-black text-slate-700">{s.guardian_name || '—'}</span>
-                    </div>
-                 </div>
-              </div>
-            ))
-          )}
+          ))}
+        </div>
+
+        {/* PAGINATION */}
+        <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 mt-8">
+          <p className="text-xs font-bold text-slate-500">Showing {students.results?.length || 0} of {students.count}</p>
+          <div className="flex gap-2">
+            <button disabled={!students.previous} onClick={() => loadData(currentPage - 1)} className="px-4 py-2 bg-slate-100 rounded-xl text-xs font-bold disabled:opacity-50">Previous</button>
+            <div className="px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-xs font-black">{currentPage}</div>
+            <button disabled={!students.next} onClick={() => loadData(currentPage + 1)} className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold disabled:opacity-50">Next</button>
+          </div>
         </div>
       </div>
-      {/* PAGINATION SECTION */}
-                         {/* PAGINATION SECTION */}
-<div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 mt-8">
-  <p className="text-xs font-bold text-slate-500">
-    Showing {students.results.length} of {students.count} students
-  </p>
-  <div className="flex gap-2">
-    <button
-      disabled={!students.previous}
-      onClick={() => loadData(currentPage - 1)}
-      className="px-4 py-2 bg-slate-100 rounded-xl text-xs font-bold disabled:opacity-50 hover:bg-slate-200 transition-all"
-    >
-      Previous
-    </button>
-    <div className="px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-xs font-black">
-      {currentPage}
-    </div>
-    <button
-      disabled={!students.next}
-      onClick={() => loadData(currentPage + 1)}
-      className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold disabled:opacity-50 hover:bg-blue-700 transition-all shadow-lg shadow-blue-200"
-    >
-      Next
-    </button>
-  </div>
-</div>
+
       {/* DETAIL MODAL */}
       {selectedStudent && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4" onClick={() => setSelectedStudent(null)}>
-          <div className="bg-white rounded-[3rem] w-full max-w-2xl p-10 relative overflow-hidden animate-in zoom-in-95 duration-300" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-[3rem] w-full max-w-2xl p-10 relative overflow-hidden animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
             <button onClick={() => setSelectedStudent(null)} className="absolute top-8 right-8 text-slate-400 hover:text-red-500"><X size={24}/></button>
-            
             <div className="flex items-center gap-6 mb-10">
-                <div className="w-20 h-20 bg-blue-600 text-white rounded-[2rem] flex items-center justify-center text-3xl font-black shadow-lg shadow-blue-200">
-                    {selectedStudent.fullname.charAt(0).toUpperCase()}
-                </div>
+                <div className="w-20 h-20 bg-blue-600 text-white rounded-[2rem] flex items-center justify-center text-3xl font-black">{selectedStudent.fullname.charAt(0).toUpperCase()}</div>
                 <div>
                     <h2 className="text-3xl font-black text-slate-800">{selectedStudent.fullname}</h2>
                     <p className="text-blue-600 font-bold uppercase text-xs tracking-widest mt-1">{selectedStudent.email}</p>
                 </div>
             </div>
-
             <div className="grid grid-cols-2 md:grid-cols-3 gap-8 mb-10 text-sm">
                 <DetailItem label="Roll Number" value={selectedStudent.roll_number} icon={<Hash size={16}/>} />
                 <DetailItem label="Class" value={selectedStudent.class_name ? `${selectedStudent.class_name} - ${selectedStudent.division}` : '—'} icon={<LayoutGrid size={16}/>} />
                 <DetailItem label="Admission No" value={selectedStudent.admission_number} icon={<ShieldCheck size={16}/>} />
-                <DetailItem label="Guardian" value={selectedStudent.guardian_name} icon={<User size={16}/>} />
-                <DetailItem label="Blood Group" value={selectedStudent.blood_group} icon={<Droplets size={16}/>} />
-                <DetailItem label="DOB" value={selectedStudent.DOB} icon={<Calendar size={16}/>} />
-            </div>
-
-            <div className="flex gap-4 pt-8 border-t border-slate-100">
-                <button onClick={() => handleEdit(selectedStudent)} className="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-black shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-2">
-                    <Edit size={18}/> Edit Student Profile
-                </button>
-                <button onClick={() => setSelectedStudent(null)} className="flex-1 bg-slate-100 text-slate-600 py-4 rounded-2xl font-black hover:bg-slate-200 transition-all">
-                    Close
-                </button>
             </div>
           </div>
         </div>

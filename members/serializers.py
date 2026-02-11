@@ -25,10 +25,11 @@ class StudentProfileSerializer(serializers.ModelSerializer):
     phone = serializers.CharField(source="user.phone", allow_blank=True, required=False)
     DOB = serializers.DateField(source="user.DOB", allow_null=True, required=False)
     gender = serializers.CharField(source="user.gender", allow_blank=True, required=False)
-
+    
     class_name = serializers.CharField(source="school_class.class_name", read_only=True)
-    division = serializers.CharField(source="school_class.division", read_only=True)
-    print(class_name,division)
+    division = serializers.CharField(source="school_class.division", read_only=True,required=False)
+    roll_number = serializers.IntegerField(read_only=True)
+    admission_number = serializers.CharField(read_only=True)
 
     class Meta:
         model = StudentProfile
@@ -46,7 +47,6 @@ class StudentProfileSerializer(serializers.ModelSerializer):
             "blood_group",
             "school_class",
             "class_name",      
-            "division",
             "guardian_name",
             "guardian_number",
             "roll_number",
@@ -56,6 +56,52 @@ class StudentProfileSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+    def _generate_admission_number(self, tenant):
+        """
+        Generate unique admission number per tenant
+        Format: ADM-{YEAR}-{SEQUENCE}
+        Example: ADM-2026-0001
+        """
+        from datetime import datetime
+        current_year = datetime.now().year
+        
+        # Get the last admission number for this tenant in current year
+        prefix = f"ADM-{current_year}-"
+        last_student = StudentProfile.objects.filter(
+            tenant=tenant,
+            admission_number__startswith=prefix
+        ).order_by('-admission_number').first()
+        
+        if last_student:
+            # Extract sequence number and increment
+            try:
+                last_seq = int(last_student.admission_number.split('-')[-1])
+                new_seq = last_seq + 1
+            except (ValueError, IndexError):
+                new_seq = 1
+        else:
+            new_seq = 1
+        
+        return f"{prefix}{str(new_seq).zfill(4)}"
+
+    def _generate_roll_number(self, school_class, tenant):
+        """
+        Generate auto-increment roll number per class
+        """
+        if not school_class:
+            # If no class assigned, return 0 or handle as needed
+            return 0
+        
+        # Get the highest roll number in this class
+        last_student = StudentProfile.objects.filter(
+            tenant=tenant,
+            school_class=school_class
+        ).order_by('-roll_number').first()
+        
+        if last_student and last_student.roll_number:
+            return last_student.roll_number + 1
+        else:
+            return 1
 
     def create(self, validated_data):
         # extract nested user data
@@ -93,10 +139,18 @@ class StudentProfileSerializer(serializers.ModelSerializer):
         student_user.is_setup_complete = False  # up to you
         student_user.save()
 
+        admission_number = self._generate_admission_number(tenant)
+        
+        # Auto-generate roll number based on class
+        school_class = validated_data.get('school_class')
+        roll_number = self._generate_roll_number(school_class, tenant)
+
         # create StudentProfile
         profile = StudentProfile.objects.create(
             user=student_user,
             tenant=tenant,
+            admission_number=admission_number,
+            roll_number=roll_number,
             **validated_data,
         )
         link = os.getenv('FRONTEND_LINK_STUDENT')
@@ -135,9 +189,19 @@ class StudentProfileSerializer(serializers.ModelSerializer):
             user.gender = user_data.get("gender", user.gender)
             user.save()
 
+            
+        new_class = validated_data.get('school_class')
+        if new_class and new_class != instance.school_class:
+            # Regenerate roll number for new class
+            validated_data['roll_number'] = self._generate_roll_number(
+                new_class, 
+                instance.tenant
+            )
+
         # update profile fields
         for attr, value in validated_data.items():
-            setattr(instance, attr, value)
+            if attr != 'admission_number':  # Prevent admission number changes
+                setattr(instance, attr, value)
         instance.save()
         return instance
 
@@ -170,8 +234,6 @@ class TeacherSerializer(serializers.ModelSerializer):
             "gender",
 
             # profile fields
-            "department_id",
-            "employee_id",
             "joining_date",
             "qualification",
             "salary",
@@ -179,6 +241,18 @@ class TeacherSerializer(serializers.ModelSerializer):
             "years_of_experience",
             "id_proof_url",
         ]
+    
+    def employee_idgenerator(self,tenent):
+        last_emloyee = TeacherProfile.objects.filter(
+            tenent=tenent,
+        ).order_by('-employee_id').first()
+        
+        if last_emloyee and last_emloyee.employee_id:
+            return last_emloyee.roll_number + 1
+        else:
+            return 1
+
+        
 
     def create(self, validated_data):
         request = self.context.get("request")
@@ -221,9 +295,11 @@ class TeacherSerializer(serializers.ModelSerializer):
         )
         user.set_password(raw_password)
         user.save()
+        employee_id = self.employee_idgenerator(tenant)
 
         teacher = TeacherProfile.objects.create(
             user=user,
+            employee_id=employee_id,
             **validated_data,
         )
 

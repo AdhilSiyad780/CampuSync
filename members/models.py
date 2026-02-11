@@ -41,8 +41,9 @@ class StudentProfile(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        # Example: roll_number unique per tenant+class_id if you want:
-        # unique_together = ("tenant", "class_id", "roll_number")
+        unique_together = [
+            ("tenant", "school_class", "roll_number")
+        ]
         ordering = ["-created_at"]
 
     def __str__(self):

@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react"; // Added useRef
 import { useNavigate } from "react-router-dom";
 import { 
   User, Mail, Phone, Calendar, Briefcase, 
   Users, Plus, Edit, Eye, Save, X, ChevronRight, 
   PhoneCall, ShieldCheck, GraduationCap, Award,
-  IndianRupee, Search, Trash2
+  IndianRupee, Search, Trash2, FileText, Upload // Added Upload
 } from "lucide-react";
 import api from "../../api/axios";
 
@@ -17,6 +17,8 @@ export default function TeachersPage() {
   const [success, setSuccess] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [currentPage,setCurrentPage] = useState(1);
+  const fileInputRef = useRef(null); // Reference for the hidden file input
+  const navigate = useNavigate();
 
   const [form, setForm] = useState({
     id: null,
@@ -25,17 +27,13 @@ export default function TeachersPage() {
     phone: "",
     DOB: "",
     gender: "",
-    department_id: "",
-    employee_id: "",
     joining_date: "",
     qualification: "",
     salary: "",
     specialization: "",
     years_of_experience: "",
-    id_proof_url: "",
+    id_proof_url: "", // This will now hold the filename or file object
   });
-
-  
 
   useEffect(() => {
     loadTeachers(1);
@@ -44,7 +42,7 @@ export default function TeachersPage() {
   const resetLocalForm = () => {
     setForm({
       id: null, fullname: "", email: "", phone: "", DOB: "", gender: "",
-      department_id: "", employee_id: "", joining_date: "", qualification: "",
+      joining_date: "", qualification: "",
       salary: "", specialization: "", years_of_experience: "", id_proof_url: "",
     });
     setError(""); setSuccess("");
@@ -69,6 +67,15 @@ export default function TeachersPage() {
     setError(""); setSuccess("");
   };
 
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // For now, we store the file name to show in UI. 
+      // If you are uploading via FormData, you'd store the 'file' object itself.
+      setForm({ ...form, id_proof_url: file.name });
+    }
+  };
+
   const handleEdit = (teacher) => {
     let joiningDateValue = "";
     if (teacher.joining_date) {
@@ -90,8 +97,6 @@ export default function TeachersPage() {
     try {
       const payload = {
         ...form,
-        department_id: form.department_id ? Number(form.department_id) : null,
-        employee_id: form.employee_id ? Number(form.employee_id) : null,
         salary: form.salary ? Number(form.salary) : null,
         years_of_experience: form.years_of_experience ? Number(form.years_of_experience) : null,
       };
@@ -100,15 +105,15 @@ export default function TeachersPage() {
         await api.put(`teachers/${form.id}/`, payload);
         setSuccess("Faculty record updated successfully.");
       } else {
-        await api.post("teachers/", payload);
+        const res = await api.post("teachers/", payload);
+        console.log(res.data,'===========================')
         setSuccess("New teacher registered successfully.");
       }
-      await loadTeachers();
+      await loadTeachers(currentPage);
       setIsFormOpen(false);
       resetLocalForm();
     } catch (err) {
       setError("Failed to save changes. Please verify all required fields.");
-      console.log(err)
     } finally {
       setSaving(false);
     }
@@ -151,7 +156,6 @@ export default function TeachersPage() {
             </div>
             
             <form onSubmit={handleSubmit} className="p-8 grid grid-cols-1 lg:grid-cols-12 gap-10">
-              {/* Personal Section */}
               <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
                 <SectionTitle title="Personal Details" />
                 <InputGroup label="Full Name *" name="fullname" value={form.fullname} onChange={handleChange} icon={<User size={18}/>} />
@@ -170,14 +174,37 @@ export default function TeachersPage() {
                 </div>
 
                 <SectionTitle title="Professional Information" className="md:col-span-2 mt-4" />
-                <InputGroup label="Employee ID *" name="employee_id" value={form.employee_id} onChange={handleChange} icon={<ShieldCheck size={18}/>} type="number" />
                 <InputGroup label="Joining Date *" name="joining_date" value={form.joining_date} onChange={handleChange} icon={<Calendar size={18}/>} type="datetime-local" />
                 <InputGroup label="Qualification *" name="qualification" value={form.qualification} onChange={handleChange} icon={<Award size={18}/>} />
                 <InputGroup label="Salary (Monthly)" name="salary" value={form.salary} onChange={handleChange} icon={<IndianRupee size={18}/>} type="number" />
                 <InputGroup label="Exp (Years)" name="years_of_experience" value={form.years_of_experience} onChange={handleChange} icon={<Briefcase size={18}/>} type="number" />
-                <InputGroup label="Department ID" name="department_id" value={form.department_id} onChange={handleChange} icon={<Users size={18}/>} type="number" />
                 <InputGroup label="Specialization" name="specialization" value={form.specialization} onChange={handleChange} icon={<Plus size={18}/>} className="md:col-span-2" />
-                <InputGroup label="ID Proof URL" name="id_proof_url" value={form.id_proof_url} onChange={handleChange} icon={<FileText size={18}/>} className="md:col-span-2" />
+                
+                {/* SYSTEM FILE SELECTOR FOR ID PROOF */}
+                <div className="md:col-span-2 space-y-2">
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">ID Proof Document</label>
+                   <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    onChange={handleFileChange} 
+                    className="hidden" 
+                    accept=".pdf,.jpg,.jpeg,.png"
+                   />
+                   <div 
+                    onClick={() => fileInputRef.current.click()}
+                    className="w-full bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-all group"
+                   >
+                     <div className="p-3 bg-white rounded-xl shadow-sm group-hover:scale-110 transition-transform">
+                       <Upload size={20} className="text-blue-600" />
+                     </div>
+                     <p className="text-sm font-bold text-slate-600">
+                       {form.id_proof_url ? form.id_proof_url : "Click to upload ID Proof"}
+                     </p>
+                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                       PDF, PNG, or JPG (Max 5MB)
+                     </p>
+                   </div>
+                </div>
               </div>
 
               {/* Action Sidebar */}
@@ -186,7 +213,7 @@ export default function TeachersPage() {
                   <h4 className="text-sm font-black text-slate-800 mb-6">Enrollment Overview</h4>
                   <div className="space-y-4 mb-8">
                     <StatusItem label="Directory Status" value="Ready to Sync" color="text-blue-600" />
-                    <StatusItem label="Employee ID" value={form.employee_id || "Pending"} color="text-slate-600" />
+                    <StatusItem label="System ID" value="Auto-generated" color="text-slate-400 italic" />
                   </div>
                   <button type="submit" disabled={saving} className="w-full bg-[#1E293B] text-white py-4 rounded-2xl font-black shadow-xl flex items-center justify-center gap-3 hover:bg-slate-800 transition-all">
                     {saving ? "Saving Data..." : <><Save size={18}/> {form.id ? "Update Profile" : "Register Faculty"}</>}
@@ -197,7 +224,7 @@ export default function TeachersPage() {
           </div>
         )}
 
-        {/* FACULTY LIST (GRID STYLE) */}
+        {/* FACULTY GRID */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {teachers.results.map((t) => (
             <div key={t.id} className="bg-white rounded-[2.5rem] border border-slate-200 p-6 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
@@ -206,8 +233,8 @@ export default function TeachersPage() {
                     {t.fullname.charAt(0).toUpperCase()}
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => setSelectedTeacher(t)} className="p-2.5 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"><Eye size={18}/></button>
-                    <button onClick={() => handleEdit(t)} className="p-2.5 bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"><Edit size={18}/></button>
+                    <button onClick={() => setSelectedTeacher(t)} className="p-2.5 bg-slate-50 text-slate-400 hover:text-blue-600 rounded-xl transition-all"><Eye size={18}/></button>
+                    <button onClick={() => handleEdit(t)} className="p-2.5 bg-slate-50 text-slate-400 hover:text-indigo-600 rounded-xl transition-all"><Edit size={18}/></button>
                   </div>
                </div>
                
@@ -215,67 +242,39 @@ export default function TeachersPage() {
                <p className="text-xs font-bold text-blue-600 uppercase tracking-widest mt-1">{t.specialization || "Faculty Member"}</p>
                
                <div className="mt-6 pt-6 border-t border-slate-50 space-y-3">
-                  <InfoRow label="Employee ID" value={t.employee_id} />
-                  <InfoRow label="Department" value={t.department_id || "General"} />
+                  <InfoRow label="ID" value={t.employee_id} />
                   <InfoRow label="Experience" value={`${t.years_of_experience || 0} Years`} />
+                  <InfoRow label="Qualification" value={t.qualification} />
                </div>
             </div>
           ))}
         </div>
       </div>
       
-      {/* PAGINATION CONTROLS */}
-<div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 mt-8 shadow-sm">
-  <p className="text-xs font-bold text-slate-500">
-    Showing {teachers.results.length} of {teachers.count} faculty members
-  </p>
-  
-  <div className="flex items-center gap-3">
-    <button
-      disabled={!teachers.previous}
-      onClick={() => loadTeachers(currentPage - 1)}
-      className="p-2 bg-slate-100 rounded-xl text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-200 transition-all"
-      title="Previous Page"
-    >
-      <ChevronRight size={18} className="rotate-180" />
-    </button>
+      {/* PAGINATION */}
+      <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 mt-8">
+        <p className="text-xs font-bold text-slate-500">Showing {teachers.results.length} of {teachers.count}</p>
+        <div className="flex items-center gap-3">
+          <button disabled={!teachers.previous} onClick={() => loadTeachers(currentPage - 1)} className="p-2 bg-slate-100 rounded-xl text-slate-600 disabled:opacity-50"><ChevronRight size={18} className="rotate-180" /></button>
+          <span className="text-xs font-black text-blue-600 bg-blue-50 px-3 py-2 rounded-lg">{currentPage}</span>
+          <button disabled={!teachers.next} onClick={() => loadTeachers(currentPage + 1)} className="p-2 bg-blue-600 rounded-xl text-white disabled:opacity-50 shadow-lg shadow-blue-200"><ChevronRight size={18} /></button>
+        </div>
+      </div>
 
-    <div className="flex items-center gap-1">
-      <span className="text-xs font-black text-blue-600 bg-blue-50 px-3 py-2 rounded-lg">
-        {currentPage}
-      </span>
-      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-        of {Math.ceil(teachers.count / 10) || 1}
-      </span>
-    </div>
-
-    <button
-      disabled={!teachers.next}
-      onClick={() => loadTeachers(currentPage + 1)}
-      className="p-2 bg-blue-600 rounded-xl text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition-all shadow-lg shadow-blue-200"
-      title="Next Page"
-    >
-      <ChevronRight size={18} />
-    </button>
-  </div>
-</div>
-
-      {/* DETAILED VIEW MODAL */}
+      {/* DETAIL MODAL */}
       {selectedTeacher && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4" onClick={() => setSelectedTeacher(null)}>
           <div className="bg-white rounded-[3rem] w-full max-w-2xl p-10 relative overflow-hidden animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
             <button onClick={() => setSelectedTeacher(null)} className="absolute top-8 right-8 text-slate-400 hover:text-red-500"><X size={24}/></button>
             <div className="flex items-center gap-6 mb-10">
-                <div className="w-20 h-20 bg-blue-600 text-white rounded-[2rem] flex items-center justify-center text-3xl font-black">
-                    {selectedTeacher.fullname.charAt(0).toUpperCase()}
-                </div>
+                <div className="w-20 h-20 bg-blue-600 text-white rounded-[2rem] flex items-center justify-center text-3xl font-black">{selectedTeacher.fullname.charAt(0).toUpperCase()}</div>
                 <div>
                     <h2 className="text-3xl font-black text-slate-800">{selectedTeacher.fullname}</h2>
                     <p className="text-blue-600 font-bold uppercase text-xs tracking-widest">{selectedTeacher.email}</p>
                 </div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-8 text-sm">
-                <DetailItem label="Employee ID" value={selectedTeacher.employee_id} />
+                <DetailItem label="ID" value={selectedTeacher.employee_id} />
                 <DetailItem label="Qualification" value={selectedTeacher.qualification} />
                 <DetailItem label="Salary" value={`₹${selectedTeacher.salary}`} />
                 <DetailItem label="Experience" value={`${selectedTeacher.years_of_experience} Yrs`} />
@@ -289,7 +288,7 @@ export default function TeachersPage() {
   );
 }
 
-// Components
+// Sub-components... (InputGroup, SectionTitle, InfoRow, StatusItem, DetailItem)
 function InputGroup({ label, icon, className, ...props }) {
   return (
     <div className={`space-y-2 ${className}`}>
@@ -331,8 +330,4 @@ function DetailItem({ label, value }) {
       <p className="font-bold text-slate-800">{value || "—"}</p>
     </div>
   );
-}
-
-function FileText(props) {
-  return <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>;
 }
