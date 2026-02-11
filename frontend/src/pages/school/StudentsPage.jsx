@@ -3,14 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { 
   User, Mail, Phone, Calendar, 
   Plus, Edit, Eye, Save, X, ChevronRight, 
-  PhoneCall, GraduationCap, ShieldCheck, Heart, Trash2,
+  PhoneCall, GraduationCap, ShieldCheck,
   Droplets, Hash, LayoutGrid, FileText
 } from "lucide-react";
 import api from "../../api/axios";
 
 export default function StudentsPage() {
   const [students, setStudents] = useState({results:[],count:0,next:null,previous:null});
-  const [classes, setClasses] = useState([]);
+  const [classes, setClasses] = useState({results:[]});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -49,8 +49,8 @@ export default function StudentsPage() {
         api.get("classes/")
       ]);
       
-      setStudents(studentsRes.data || []);
-      setClasses(classesRes.data || []);
+      setStudents(studentsRes.data || {results:[], count:0});
+      setClasses(classesRes.data || {results:[]});
       setCurrentPage(page);
     } catch (err) {
       if (err.response?.status === 401) {
@@ -58,6 +58,7 @@ export default function StudentsPage() {
         navigate("/login");
       }
       setError("Failed to load data.");
+      console.error("Load error:", err);
     } finally {
       setLoading(false);
     }
@@ -71,9 +72,19 @@ export default function StudentsPage() {
 
   const resetLocalForm = () => {
     setForm({
-      id: null, fullname: "", email: "", phone: "", DOB: "", gender: "",
-      admission_date: "", blood_group: "", school_class: "",
-      guardian_name: "", guardian_number: "", student_contact: "", id_proof_url: "",
+      id: null, 
+      fullname: "", 
+      email: "", 
+      phone: "", 
+      DOB: "", 
+      gender: "",
+      admission_date: "", 
+      blood_group: "", 
+      school_class: "",
+      guardian_name: "", 
+      guardian_number: "", 
+      student_contact: "", 
+      id_proof_url: "",
     });
   };
 
@@ -111,10 +122,25 @@ export default function StudentsPage() {
     setError(""); 
     setSuccess("");
 
+    // Validate required fields
+    if (!form.DOB) {
+      setError("Date of Birth is required.");
+      setSaving(false);
+      return;
+    }
+
+    if (!form.school_class) {
+      setError("Please select a class.");
+      setSaving(false);
+      return;
+    }
+
+    console.log("Submitting form data:", form);
+
     try {
       if (form.id) {
         await api.put(`students/${form.id}/`, form);
-        setSuccess("Student profile updated.");
+        setSuccess("Student profile updated successfully.");
       } else {
         const response = await api.post("students/", form);
         setSuccess(`New student enrolled! Admission No: ${response.data.admission_number}, Roll No: ${response.data.roll_number}`);
@@ -123,8 +149,23 @@ export default function StudentsPage() {
       setIsFormOpen(false);
       resetLocalForm();
     } catch (err) {
+      console.error("Submit error:", err.response?.data);
       const serverErrors = err.response?.data;
-      const errorMsg = serverErrors?.email?.[0] || serverErrors?.school_class?.[0] || serverErrors?.non_field_errors?.[0] || "Failed to save student.";
+      
+      // Handle different error formats
+      let errorMsg = "Failed to save student.";
+      
+      if (typeof serverErrors === 'string') {
+        errorMsg = serverErrors;
+      } else if (serverErrors) {
+        errorMsg = serverErrors.email?.[0] || 
+                   serverErrors.DOB?.[0] ||
+                   serverErrors.school_class?.[0] || 
+                   serverErrors.non_field_errors?.[0] ||
+                   serverErrors.detail ||
+                   "Failed to save student. Please check all required fields.";
+      }
+      
       setError(errorMsg);
     } finally {
       setSaving(false);
@@ -158,8 +199,16 @@ export default function StudentsPage() {
           </button>
         </div>
 
-        {success && <div className="p-4 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-2xl text-sm font-bold">{success}</div>}
-        {error && <div className="p-4 bg-red-50 border border-red-100 text-red-700 rounded-2xl text-sm font-bold">{error}</div>}
+        {success && (
+          <div className="p-4 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-2xl text-sm font-bold animate-in fade-in slide-in-from-top-2">
+            {success}
+          </div>
+        )}
+        {error && (
+          <div className="p-4 bg-red-50 border border-red-100 text-red-700 rounded-2xl text-sm font-bold animate-in fade-in slide-in-from-top-2">
+            {error}
+          </div>
+        )}
 
         {/* ENROLLMENT FORM */}
         {isFormOpen && (
@@ -173,15 +222,54 @@ export default function StudentsPage() {
             
             <form onSubmit={handleSubmit} className="p-8 grid grid-cols-1 lg:grid-cols-12 gap-10">
               <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-                <h4 className="md:col-span-2 text-xs font-black text-blue-600 uppercase tracking-widest border-b pb-2">Personal Information</h4>
-                <InputGroup label="Full Name *" name="fullname" value={form.fullname} onChange={handleChange} icon={<User size={18}/>} required />
-                <InputGroup label="Email Address *" name="email" value={form.email} onChange={handleChange} icon={<Mail size={18}/>} type="email" required />
-                <InputGroup label="Phone Number" name="phone" value={form.phone} onChange={handleChange} icon={<Phone size={18}/>} />
-                <InputGroup label="Date of Birth *" name="DOB" value={form.DOB} onChange={handleChange} icon={<Calendar size={18}/>} type="date" required />
+                <h4 className="md:col-span-2 text-xs font-black text-blue-600 uppercase tracking-widest border-b pb-2">
+                  Personal Information
+                </h4>
+                
+                <InputGroup 
+                  label="Full Name *" 
+                  name="fullname" 
+                  value={form.fullname} 
+                  onChange={handleChange} 
+                  icon={<User size={18}/>} 
+                  required 
+                />
+                <InputGroup 
+                  label="Email Address *" 
+                  name="email" 
+                  value={form.email} 
+                  onChange={handleChange} 
+                  icon={<Mail size={18}/>} 
+                  type="email" 
+                  required 
+                />
+                <InputGroup 
+                  label="Phone Number" 
+                  name="phone" 
+                  value={form.phone} 
+                  onChange={handleChange} 
+                  icon={<Phone size={18}/>} 
+                />
+                <InputGroup 
+                  label="Date of Birth *" 
+                  name="DOB" 
+                  value={form.DOB} 
+                  onChange={handleChange} 
+                  icon={<Calendar size={18}/>} 
+                  type="date" 
+                  required 
+                />
                 
                 <div className="space-y-2">
-                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Gender</label>
-                   <select name="gender" value={form.gender} onChange={handleChange} className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/10 transition-all">
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                     Gender
+                   </label>
+                   <select 
+                     name="gender" 
+                     value={form.gender} 
+                     onChange={handleChange} 
+                     className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-4 py-3.5 text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/10 transition-all"
+                   >
                       <option value="">Select</option>
                       <option value="male">Male</option>
                       <option value="female">Female</option>
@@ -189,9 +277,11 @@ export default function StudentsPage() {
                    </select>
                 </div>
 
-                {/* BLOOD GROUP DROPDOWN */}
+                {/* Blood Group Dropdown */}
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Blood Group</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                    Blood Group
+                  </label>
                   <div className="relative flex items-center">
                     <Droplets className="absolute left-4 text-slate-300" size={18} />
                     <select 
@@ -208,13 +298,28 @@ export default function StudentsPage() {
                   </div>
                 </div>
 
-                <h4 className="md:col-span-2 text-xs font-black text-blue-600 uppercase tracking-widest border-b pb-2 mt-4">Academic Details</h4>
-                <InputGroup label="Admission Date" name="admission_date" value={form.admission_date} onChange={handleChange} icon={<Calendar size={18}/>} type="datetime-local" />
+                <h4 className="md:col-span-2 text-xs font-black text-blue-600 uppercase tracking-widest border-b pb-2 mt-4">
+                  Academic Details
+                </h4>
                 
+                <InputGroup 
+                  label="Admission Date" 
+                  name="admission_date" 
+                  value={form.admission_date} 
+                  onChange={handleChange} 
+                  icon={<Calendar size={18}/>} 
+                  type="datetime-local" 
+                />
+                
+                {/* Class Dropdown */}
                 <div className="space-y-2">
-                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Class *</label>
+                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                     Class *
+                   </label>
                    <div className="relative flex items-center">
-                      <div className="absolute left-4 text-slate-300"><LayoutGrid size={18}/></div>
+                      <div className="absolute left-4 text-slate-300">
+                        <LayoutGrid size={18}/>
+                      </div>
                       <select 
                         name="school_class" 
                         value={form.school_class} 
@@ -224,23 +329,40 @@ export default function StudentsPage() {
                       >
                         <option value="">Select Class</option>
                         {classes.results?.map((cls) => (
-                          <option key={cls.id} value={cls.id}>{cls.class_name} - {cls.division}</option>
+                          <option key={cls.id} value={cls.id}>
+                            {cls.class_name} - {cls.division}
+                          </option>
                         ))}
                       </select>
                    </div>
                 </div>
 
-                {/* ID PROOF DEVICE SELECTOR */}
-                <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">ID Proof Document</label>
+                {/* Info Banner */}
+                {!form.id && (
+                  <div className="md:col-span-2 bg-blue-50 border border-blue-100 rounded-2xl p-4">
+                    <p className="text-xs font-bold text-blue-700 flex items-center gap-2">
+                      <ShieldCheck size={16} />
+                      Admission number and roll number will be automatically generated
+                    </p>
+                  </div>
+                )}
+
+                {/* ID Proof Upload */}
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                    ID Proof Document
+                  </label>
                   <div className="relative">
                     <input 
                       type="file" 
                       id="id_proof_upload"
                       className="hidden" 
+                      accept="image/*,.pdf"
                       onChange={(e) => {
                         const file = e.target.files[0];
-                        if (file) setForm({ ...form, id_proof_url: file.name });
+                        if (file) {
+                          setForm({ ...form, id_proof_url: file.name });
+                        }
                       }} 
                     />
                     <button 
@@ -257,14 +379,47 @@ export default function StudentsPage() {
 
               <div className="lg:col-span-4 space-y-6">
                 <div className="bg-slate-50 rounded-[2rem] p-6 border border-slate-100 space-y-6">
-                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest border-b pb-2">Guardian Info</h4>
-                  <InputGroup label="Guardian Name" name="guardian_name" value={form.guardian_name} onChange={handleChange} icon={<User size={18}/>} />
-                  <InputGroup label="Guardian Number" name="guardian_number" value={form.guardian_number} onChange={handleChange} icon={<PhoneCall size={18}/>} />
-                  <InputGroup label="Student Contact" name="student_contact" value={form.student_contact} onChange={handleChange} icon={<Phone size={18}/>} />
+                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest border-b pb-2">
+                    Guardian Info
+                  </h4>
+                  <InputGroup 
+                    label="Guardian Name" 
+                    name="guardian_name" 
+                    value={form.guardian_name} 
+                    onChange={handleChange} 
+                    icon={<User size={18}/>} 
+                  />
+                  <InputGroup 
+                    label="Guardian Number" 
+                    name="guardian_number" 
+                    value={form.guardian_number} 
+                    onChange={handleChange} 
+                    icon={<PhoneCall size={18}/>} 
+                  />
+                  <InputGroup 
+                    label="Student Contact" 
+                    name="student_contact" 
+                    value={form.student_contact} 
+                    onChange={handleChange} 
+                    icon={<Phone size={18}/>} 
+                  />
                 </div>
                 
-                <button type="submit" disabled={saving} className="w-full bg-[#1E293B] text-white py-4 rounded-2xl font-black shadow-xl flex items-center justify-center gap-3 hover:bg-slate-800 transition-all disabled:opacity-60">
-                   {saving ? "Processing..." : <><Save size={18}/> {form.id ? "Update Profile" : "Enroll Student"}</>}
+                <button 
+                  type="submit" 
+                  disabled={saving} 
+                  className="w-full bg-[#1E293B] text-white py-4 rounded-2xl font-black shadow-xl flex items-center justify-center gap-3 hover:bg-slate-800 transition-all disabled:opacity-60"
+                >
+                   {saving ? (
+                     <>
+                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                       Processing...
+                     </>
+                   ) : (
+                     <>
+                       <Save size={18}/> {form.id ? "Update Profile" : "Enroll Student"}
+                     </>
+                   )}
                 </button>
               </div>
             </form>
@@ -273,56 +428,142 @@ export default function StudentsPage() {
 
         {/* STUDENT GRID */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {students.results?.map((s) => (
-            <div key={s.id} className="bg-white rounded-[2.5rem] border border-slate-200 p-6 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
-               <div className="flex justify-between items-start mb-6">
-                  <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-xl font-black">
-                    {s.fullname.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => setSelectedStudent(s)} className="p-2.5 bg-slate-50 text-slate-400 hover:text-blue-600 rounded-xl transition-all"><Eye size={18}/></button>
-                    <button onClick={() => handleEdit(s)} className="p-2.5 bg-slate-50 text-slate-400 hover:text-indigo-600 rounded-xl transition-all"><Edit size={18}/></button>
-                  </div>
-               </div>
-               
-               <h4 className="text-xl font-black text-slate-800 tracking-tight">{s.fullname}</h4>
-               <div className="flex flex-wrap gap-2 mt-2">
-                  <span className="px-2.5 py-1 bg-slate-100 text-slate-600 text-[9px] font-black rounded-lg uppercase">Roll: {s.roll_number || 'N/A'}</span>
-                  <span className="px-2.5 py-1 bg-blue-50 text-blue-600 text-[9px] font-black rounded-lg uppercase">
-                    {s.class_name ? `${s.class_name} - ${s.division}` : 'No Class'}
-                  </span>
-               </div>
+          {students.results?.length === 0 ? (
+            <div className="md:col-span-2 lg:col-span-3 p-12 text-center bg-white rounded-[2.5rem] border-2 border-dashed border-slate-200">
+              <GraduationCap size={48} className="mx-auto text-slate-300 mb-4" />
+              <h3 className="text-lg font-bold text-slate-600 mb-2">No Students Yet</h3>
+              <p className="text-sm text-slate-400">Enroll your first student using the form above</p>
             </div>
-          ))}
+          ) : (
+            students.results?.map((s) => (
+              <div key={s.id} className="bg-white rounded-[2.5rem] border border-slate-200 p-6 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
+                 <div className="flex justify-between items-start mb-6">
+                    <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-xl font-black">
+                      {s.fullname.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => setSelectedStudent(s)} 
+                        className="p-2.5 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                      >
+                        <Eye size={18}/>
+                      </button>
+                      <button 
+                        onClick={() => handleEdit(s)} 
+                        className="p-2.5 bg-slate-50 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                      >
+                        <Edit size={18}/>
+                      </button>
+                    </div>
+                 </div>
+                 
+                 <h4 className="text-xl font-black text-slate-800 tracking-tight">{s.fullname}</h4>
+                 <div className="flex flex-wrap gap-2 mt-2">
+                    <span className="px-2.5 py-1 bg-slate-100 text-slate-600 text-[9px] font-black rounded-lg uppercase">
+                      Roll: {s.roll_number || 'N/A'}
+                    </span>
+                    <span className="px-2.5 py-1 bg-blue-50 text-blue-600 text-[9px] font-black rounded-lg uppercase">
+                      {s.class_name ? `${s.class_name} - ${s.division}` : 'No Class'}
+                    </span>
+                 </div>
+                 
+                 <div className="mt-6 pt-6 border-t border-slate-50 space-y-3">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-slate-400">Admission No</span>
+                      <span className="font-black text-slate-700">{s.admission_number}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-slate-400">Guardian</span>
+                      <span className="font-black text-slate-700">{s.guardian_name || '—'}</span>
+                    </div>
+                 </div>
+              </div>
+            ))
+          )}
         </div>
 
         {/* PAGINATION */}
         <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200 mt-8">
-          <p className="text-xs font-bold text-slate-500">Showing {students.results?.length || 0} of {students.count}</p>
+          <p className="text-xs font-bold text-slate-500">
+            Showing {students.results?.length || 0} of {students.count} students
+          </p>
           <div className="flex gap-2">
-            <button disabled={!students.previous} onClick={() => loadData(currentPage - 1)} className="px-4 py-2 bg-slate-100 rounded-xl text-xs font-bold disabled:opacity-50">Previous</button>
-            <div className="px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-xs font-black">{currentPage}</div>
-            <button disabled={!students.next} onClick={() => loadData(currentPage + 1)} className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold disabled:opacity-50">Next</button>
+            <button
+              disabled={!students.previous}
+              onClick={() => loadData(currentPage - 1)}
+              className="px-4 py-2 bg-slate-100 rounded-xl text-xs font-bold disabled:opacity-50 hover:bg-slate-200 transition-all"
+            >
+              Previous
+            </button>
+            <div className="px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-xs font-black">
+              {currentPage}
+            </div>
+            <button
+              disabled={!students.next}
+              onClick={() => loadData(currentPage + 1)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold disabled:opacity-50 hover:bg-blue-700 transition-all shadow-lg shadow-blue-200"
+            >
+              Next
+            </button>
           </div>
         </div>
       </div>
 
       {/* DETAIL MODAL */}
       {selectedStudent && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4" onClick={() => setSelectedStudent(null)}>
-          <div className="bg-white rounded-[3rem] w-full max-w-2xl p-10 relative overflow-hidden animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
-            <button onClick={() => setSelectedStudent(null)} className="absolute top-8 right-8 text-slate-400 hover:text-red-500"><X size={24}/></button>
+        <div 
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4" 
+          onClick={() => setSelectedStudent(null)}
+        >
+          <div 
+            className="bg-white rounded-[3rem] w-full max-w-2xl p-10 relative overflow-hidden animate-in zoom-in-95 duration-300" 
+            onClick={e => e.stopPropagation()}
+          >
+            <button 
+              onClick={() => setSelectedStudent(null)} 
+              className="absolute top-8 right-8 text-slate-400 hover:text-red-500"
+            >
+              <X size={24}/>
+            </button>
+            
             <div className="flex items-center gap-6 mb-10">
-                <div className="w-20 h-20 bg-blue-600 text-white rounded-[2rem] flex items-center justify-center text-3xl font-black">{selectedStudent.fullname.charAt(0).toUpperCase()}</div>
+                <div className="w-20 h-20 bg-blue-600 text-white rounded-[2rem] flex items-center justify-center text-3xl font-black shadow-lg shadow-blue-200">
+                    {selectedStudent.fullname.charAt(0).toUpperCase()}
+                </div>
                 <div>
                     <h2 className="text-3xl font-black text-slate-800">{selectedStudent.fullname}</h2>
-                    <p className="text-blue-600 font-bold uppercase text-xs tracking-widest mt-1">{selectedStudent.email}</p>
+                    <p className="text-blue-600 font-bold uppercase text-xs tracking-widest mt-1">
+                      {selectedStudent.email}
+                    </p>
                 </div>
             </div>
+
             <div className="grid grid-cols-2 md:grid-cols-3 gap-8 mb-10 text-sm">
                 <DetailItem label="Roll Number" value={selectedStudent.roll_number} icon={<Hash size={16}/>} />
-                <DetailItem label="Class" value={selectedStudent.class_name ? `${selectedStudent.class_name} - ${selectedStudent.division}` : '—'} icon={<LayoutGrid size={16}/>} />
+                <DetailItem 
+                  label="Class" 
+                  value={selectedStudent.class_name ? `${selectedStudent.class_name} - ${selectedStudent.division}` : '—'} 
+                  icon={<LayoutGrid size={16}/>} 
+                />
                 <DetailItem label="Admission No" value={selectedStudent.admission_number} icon={<ShieldCheck size={16}/>} />
+                <DetailItem label="Guardian" value={selectedStudent.guardian_name} icon={<User size={16}/>} />
+                <DetailItem label="Blood Group" value={selectedStudent.blood_group} icon={<Droplets size={16}/>} />
+                <DetailItem label="DOB" value={selectedStudent.DOB} icon={<Calendar size={16}/>} />
+            </div>
+
+            <div className="flex gap-4 pt-8 border-t border-slate-100">
+                <button 
+                  onClick={() => handleEdit(selectedStudent)} 
+                  className="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-black shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
+                >
+                    <Edit size={18}/> Edit Student Profile
+                </button>
+                <button 
+                  onClick={() => setSelectedStudent(null)} 
+                  className="flex-1 bg-slate-100 text-slate-600 py-4 rounded-2xl font-black hover:bg-slate-200 transition-all"
+                >
+                    Close
+                </button>
             </div>
           </div>
         </div>
@@ -334,10 +575,15 @@ export default function StudentsPage() {
 function InputGroup({ label, icon, className, ...props }) {
   return (
     <div className={`space-y-2 ${className}`}>
-      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{label}</label>
+      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+        {label}
+      </label>
       <div className="relative flex items-center">
         <div className="absolute left-4 text-slate-300">{icon}</div>
-        <input {...props} className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold text-slate-700 focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" />
+        <input 
+          {...props} 
+          className="w-full bg-slate-50 border border-slate-100 rounded-2xl pl-12 pr-4 py-3.5 text-sm font-bold text-slate-700 focus:bg-white focus:ring-4 focus:ring-blue-500/10 outline-none transition-all" 
+        />
       </div>
     </div>
   );

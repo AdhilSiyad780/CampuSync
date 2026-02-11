@@ -20,11 +20,7 @@ export default function ClassesPage() {
   const [currentPage, setCurrentPage] = useState(1);
 
 
-  const navigate = useNavigate();
-  const valid_entry = localStorage.getItem('access')
-  if (!valid_entry){
-      navigate('/')
-  }
+
   
 
   const [form, setForm] = useState({

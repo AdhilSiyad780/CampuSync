@@ -15,6 +15,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import TeacherProfile
 
+
 User = get_user_model()
 
 
@@ -27,7 +28,7 @@ class StudentProfileSerializer(serializers.ModelSerializer):
     gender = serializers.CharField(source="user.gender", allow_blank=True, required=False)
     
     class_name = serializers.CharField(source="school_class.class_name", read_only=True)
-    division = serializers.CharField(source="school_class.division", read_only=True,required=False)
+    division = serializers.CharField(source="school_class.division", read_only=True, required=False)
     roll_number = serializers.IntegerField(read_only=True)
     admission_number = serializers.CharField(read_only=True)
 
@@ -46,7 +47,8 @@ class StudentProfileSerializer(serializers.ModelSerializer):
             "admission_date",
             "blood_group",
             "school_class",
-            "class_name",      
+            "class_name",
+            "division",
             "guardian_name",
             "guardian_number",
             "roll_number",
@@ -55,7 +57,8 @@ class StudentProfileSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_at", "updated_at", "roll_number", "admission_number"]
+
     def _generate_admission_number(self, tenant):
         """
         Generate unique admission number per tenant
@@ -104,7 +107,7 @@ class StudentProfileSerializer(serializers.ModelSerializer):
             return 1
 
     def create(self, validated_data):
-        # extract nested user data
+        # Extract nested user data
         user_data = validated_data.pop("user")
         request = self.context.get("request")
         user_admin = getattr(request, "user", None)
@@ -119,10 +122,18 @@ class StudentProfileSerializer(serializers.ModelSerializer):
         dob = user_data.get("DOB")
         gender = user_data.get("gender", "")
 
-        if User.objects.filter(email__iexact=email).exists():
-            raise serializers.ValidationError({"email": "User with this email already exists."})
+        # Validate DOB is provided
+        if not dob:
+            raise serializers.ValidationError({
+                "DOB": "Date of birth is required to generate the student password."
+            })
 
-        # create student User
+        if User.objects.filter(email__iexact=email).exists():
+            raise serializers.ValidationError({
+                "email": "User with this email already exists."
+            })
+
+        # Create student User
         raw_password = dob.strftime("%d%m%Y")
         student_user = User.objects.create_user(
             email=email,
@@ -136,16 +147,17 @@ class StudentProfileSerializer(serializers.ModelSerializer):
         student_user.user_type = "student"
         student_user.status = "active"
         student_user.is_staff = False
-        student_user.is_setup_complete = False  # up to you
+        student_user.is_setup_complete = False
         student_user.save()
 
+        # Auto-generate admission number
         admission_number = self._generate_admission_number(tenant)
         
         # Auto-generate roll number based on class
         school_class = validated_data.get('school_class')
         roll_number = self._generate_roll_number(school_class, tenant)
 
-        # create StudentProfile
+        # Create StudentProfile with auto-generated values
         profile = StudentProfile.objects.create(
             user=student_user,
             tenant=tenant,
@@ -153,28 +165,34 @@ class StudentProfileSerializer(serializers.ModelSerializer):
             roll_number=roll_number,
             **validated_data,
         )
-        link = os.getenv('FRONTEND_LINK_STUDENT')
+        
+        link = os.getenv('FRONTEND_LINK_STUDENT', '')
+        
         try:
             send_mail(
                 subject="Your Student Account Credentials",
                 message=(
-    f"Hi {student_user.fullname},\n\n"
-    f"Your student account has been created.\n\n"
-    f"🔐 Login Details:\n"
-    f"Email: {student_user.email}\n"
-    f"Password: {raw_password} (DOB in DDMMYYYY)\n\n"
-    f"🎓 Student Dashboard:\n"
-    f"{link}\n\n"
-    f"Please log in and change your password immediately."
-),
+                    f"Hi {student_user.fullname},\n\n"
+                    f"Your student account has been created.\n\n"
+                    f"🔐 Login Details:\n"
+                    f"Email: {student_user.email}\n"
+                    f"Password: {raw_password} (DOB in DDMMYYYY)\n\n"
+                    f"📋 Admission Details:\n"
+                    f"Admission Number: {admission_number}\n"
+                    f"Roll Number: {roll_number}\n"
+                    f"Class: {school_class.class_name if school_class else 'Not Assigned'}\n\n"
+                    f"🎓 Student Dashboard:\n"
+                    f"{link}\n\n"
+                    f"Please log in and change your password immediately."
+                ),
                 from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
                 recipient_list=[student_user.email],
-                fail_silently=True,  # avoid breaking create if email config is wrong
+                fail_silently=True,
             )
-        except Exception:
+        except Exception as e:
+            # Log error but don't block creation
+            print(f"Email sending failed: {str(e)}")
             pass
-           
-            
 
         return profile
 
@@ -189,7 +207,7 @@ class StudentProfileSerializer(serializers.ModelSerializer):
             user.gender = user_data.get("gender", user.gender)
             user.save()
 
-            
+        # Handle class change - regenerate roll number if class changed
         new_class = validated_data.get('school_class')
         if new_class and new_class != instance.school_class:
             # Regenerate roll number for new class
@@ -198,13 +216,13 @@ class StudentProfileSerializer(serializers.ModelSerializer):
                 instance.tenant
             )
 
-        # update profile fields
+        # Update profile fields (excluding admission_number which should not change)
         for attr, value in validated_data.items():
             if attr != 'admission_number':  # Prevent admission number changes
                 setattr(instance, attr, value)
+        
         instance.save()
         return instance
-
 
 
 class TeacherSerializer(serializers.ModelSerializer):
