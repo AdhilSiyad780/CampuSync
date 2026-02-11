@@ -25,12 +25,11 @@ function AdminLoginPage() {
         credential: credentialResponse.credential,
       });
 
-      localStorage.setItem("access", res.data.access);
-      localStorage.setItem("refresh", res.data.refresh);
+      
 
       const user = res.data.user || {};
       const needsSetup = res.data.needs_setup ?? !user.is_setup_complete;
-
+      await checkAuth()
       if (needsSetup) {
         navigate("/signup/complete", {
           state: { fromGoogle: true, email: user.email, fullname: user.fullname },

@@ -57,13 +57,19 @@ class TeacherProfile(models.Model):
         on_delete=models.CASCADE,
         related_name="teacher_profile",
     )
+    tenant = models.ForeignKey(
+        Tenant,
+        on_delete=models.CASCADE,
+        related_name="teacher_profiles",
+    )
     department_id = models.IntegerField(null=True, blank=True)
     employee_id = models.IntegerField()
     joining_date = models.DateTimeField()
     qualification = models.CharField(max_length=255)
     salary = models.IntegerField(null=True, blank=True)
     specialization = models.CharField(max_length=255, blank=True)
-    id_proof_url = models.CharField(max_length=255)
+    id_proof = models.FileField(upload_to="idproofs/")
+
     years_of_experience = models.IntegerField(null=True, blank=True)
 
     def __str__(self):

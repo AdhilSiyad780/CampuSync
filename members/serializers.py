@@ -239,16 +239,16 @@ class TeacherSerializer(serializers.ModelSerializer):
             "salary",
             "specialization",
             "years_of_experience",
-            "id_proof_url",
+            "id_proof",
         ]
     
-    def employee_idgenerator(self,tenent):
+    def employee_idgenerator(self,tenant):
         last_emloyee = TeacherProfile.objects.filter(
-            tenent=tenent,
+            tenant=tenant,
         ).order_by('-employee_id').first()
         
         if last_emloyee and last_emloyee.employee_id:
-            return last_emloyee.roll_number + 1
+            return last_emloyee.employee_id + 1
         else:
             return 1
 
@@ -299,6 +299,7 @@ class TeacherSerializer(serializers.ModelSerializer):
 
         teacher = TeacherProfile.objects.create(
             user=user,
+            tenant=tenant,
             employee_id=employee_id,
             **validated_data,
         )
