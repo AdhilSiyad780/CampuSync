@@ -56,10 +56,10 @@ class TenantSummaryView(APIView):
             days_left = None
 
             # adjust to correct expiry field name (I’ll assume expires_at)
-            if getattr(current_sub, "expires_at", None):
-                delta = current_sub.expires_at - timezone.now()
+            if getattr(current_sub, "expiry_date", None):
+                delta = current_sub.expiry_date - timezone.now()
                 days_left = max(delta.days, 0)
-
+            print(days_left,'days left',current_sub.expiry_date)
             current_plan = {
                 "id": plan.id if plan else None,
                 "name": getattr(plan, "plan_name", "") if plan else "",

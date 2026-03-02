@@ -5,7 +5,7 @@ from .views import (
     TeacherClassesForAttendanceView,
     GetStudentsForAttendanceView,
     AttendanceSessionDetailView,
-    StudentAttendanceView
+    StudentAttendanceView,ParentAttendanceView
 
    
 )
@@ -17,6 +17,7 @@ urlpatterns = [
     path('attendance/mark/', MarkAttendanceView.as_view()),
     path('attendance/sessions/<int:pk>/', AttendanceSessionDetailView.as_view()),
     path('student/attendance/', StudentAttendanceView.as_view()),
+    path('parent/attendance/', ParentAttendanceView.as_view()),
 
 
     

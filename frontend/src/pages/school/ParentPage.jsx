@@ -152,7 +152,8 @@ export default function ParentsPage() {
       resetLocalForm();
     } catch (err) {
       const data = err.response?.data;
-      setError(data?.email ? "Email already exists." : "Validation failed. Please check required fields.");
+      console.log(err.response?.data)
+      setError('Every field must be filled');
     } finally {
       setSaving(false);
     }

@@ -60,6 +60,7 @@ export default function AdminDashboard() {
   const loadTenantSummary = async () => {
     try {
       const res = await api.get("subscriptions/tenant-summary/");
+      console.log(res.data)
       setTenantSummary(res.data || null);
     } catch (err) {
       if (err.response?.status === 401) {
@@ -207,7 +208,7 @@ export default function AdminDashboard() {
                     {isTrial && <span className="text-[10px] font-black uppercase tracking-widest bg-amber-200 px-2 py-0.5 rounded">Trial Mode</span>}
                   </div>
                   <p className="text-sm opacity-80 font-medium">
-                    {daysLeft > 0 ? `Your subscription remains active for the next ${daysLeft} days.` : "Your plan expires today."}
+                    {daysLeft > 0 ? `Your subscription remains active for the next ${daysLeft} days.` : `Your plan expires today .${daysLeft}`}
                   </p>
                 </div>
                 <button onClick={() => setShowPlanDetails(!showPlanDetails)} className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl text-xs font-bold border border-slate-200 hover:shadow-md transition-all">

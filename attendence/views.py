@@ -219,3 +219,113 @@ class StudentAttendanceView(APIView):
             "summary": summary_data
         })
 
+
+class ParentAttendanceView(APIView):
+    """
+    Allows a parent to view attendance for their children.
+    Returns list of children and attendance for the selected child.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        if request.user.user_type != 'parent':
+            return Response(
+                {"error": "Only parents can access this"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        from members.models import ParentProfile, ParentStudentRelation
+
+        try:
+            parent_profile = request.user.parent_profile
+        except ParentProfile.DoesNotExist:
+            return Response({"error": "Parent profile not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Get all children of this parent
+        relations = ParentStudentRelation.objects.filter(
+            parent=parent_profile
+        ).select_related('student__user', 'student__school_class')
+
+        children = []
+        for rel in relations:
+            sp = rel.student
+            children.append({
+                'student_id': sp.user.id,
+                'name': sp.user.fullname,
+                'roll_number': sp.roll_number,
+                'admission_number': sp.admission_number,
+                'class_name': f"{sp.school_class.class_name} - {sp.school_class.division}" if sp.school_class else "N/A",
+                'relation_type': rel.relation_type,
+                'is_primary': rel.is_primary,
+            })
+
+        # If a student_id is passed, return their attendance for the given month/year
+        student_id = request.query_params.get('student_id')
+        if not student_id:
+            return Response({"children": children})
+
+        # Validate this student belongs to the parent
+        student_ids = [c['student_id'] for c in children]
+        try:
+            student_id = int(student_id)
+        except ValueError:
+            return Response({"error": "Invalid student_id"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if student_id not in student_ids:
+            return Response(
+                {"error": "You do not have access to this student's attendance"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        month = int(request.query_params.get('month', datetime.now().month))
+        year = int(request.query_params.get('year', datetime.now().year))
+
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+
+        try:
+            student_user = User.objects.get(id=student_id)
+        except User.DoesNotExist:
+            return Response({"error": "Student not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        records = AttendanceRecord.objects.filter(
+            student=student_user,
+            session__date__month=month,
+            session__date__year=year
+        ).select_related('session').order_by('-session__date')
+
+        attendance_data = [
+            {
+                'date': record.session.date,
+                'status': record.status,
+                'status_display': record.get_status_display(),
+                'remarks': record.remarks
+            }
+            for record in records
+        ]
+
+        total = records.count()
+        present = records.filter(status='present').count()
+        absent = records.filter(status='absent').count()
+        late = records.filter(status='late').count()
+        excused = records.filter(status='excused').count()
+        percentage = round((present / total * 100), 2) if total > 0 else 0
+
+        selected_child = next((c for c in children if c['student_id'] == student_id), None)
+
+        return Response({
+            "children": children,
+            "selected_student": selected_child,
+            "month": month,
+            "year": year,
+            "attendance": attendance_data,
+            "summary": {
+                "total_days": total,
+                "present_days": present,
+                "absent_days": absent,
+                "late_days": late,
+                "excused_days": excused,
+                "attendance_percentage": percentage
+            }
+        })
+

@@ -88,6 +88,12 @@ export default function StudentDashboard() {
       icon: <GraduationCap size={20} />, 
       path: "/student/exams" 
     },
+     {
+      name: "TimeTable", 
+      icon: <GraduationCap size={20} />, 
+      path: "/student/timetable" 
+     }
+    ,
     { 
       name: "Announcements", 
       icon: <Megaphone size={20} />, 

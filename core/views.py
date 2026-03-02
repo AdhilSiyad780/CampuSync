@@ -214,9 +214,8 @@ class AdminSignupSendOTPView(APIView):
 # --------------------------------------Google Auth----------------------------------------------------
 
 
-
 class GoogleAuthView(APIView):
-    authentication_classes = []  # public
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -237,91 +236,123 @@ class GoogleAuthView(APIView):
                 "accounts.google.com",
                 "https://accounts.google.com",
             ]:
-                return Response({"detail": "Invalid issuer."}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"detail": "Invalid issuer."}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
             email = idinfo.get("email")
             fullname = idinfo.get("name", "")
             picture = idinfo.get("picture", "")
 
             if not email:
-                return Response({"detail": "Email not available from Google."},
-                                status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"detail": "Email not available from Google."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
         except Exception as e:
-            # Don't leak internal errors to client
-            print(e)
-            return Response({"detail": "Invalid Google token."}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Find or create user
-        user, created = User.objects.get_or_create(
-            email=email,
-            defaults={
-                "fullname": fullname,
-                "user_type": "admin",      # you can change this
-                "status": "active",
-                "is_staff": True,
-                "profile_picture": picture,
-            },
-        )
-
-        # If created and you want to auto-create a Tenant, you can do it here.
-        # For now, we won't, to avoid over-complicating:
-        tenant = Tenant.objects.create(
-            tenant_id=str(uuid.uuid4()),
-            instance_name="",
-            email=email,
-            phone="",
-            address="",
-            status="trial",
-        )
-
-        # 3️⃣ Attach trial subscription
-        trial_plan = SubscriptionPlan.objects.filter(
-            plan_name__iexact="Trial", is_active=True
-        ).first()
-
-        if not trial_plan:
-            trial_plan = SubscriptionPlan.objects.create(
-                plan_name="Trial",
-                description="Default trial plan",
-                duration_days=7,
-                price=0,
-                max_students=None,
-                max_teachers=None,
-                max_admins=1,
-                features=["Basic features"],
-                is_active=True,
+            print(f"❌ Google token verification failed: {e}")
+            return Response(
+                {"detail": "Invalid Google token."}, 
+                status=status.HTTP_400_BAD_REQUEST
             )
 
-        now = timezone.now()
-        Subscription.objects.create(
-            tenant=tenant,
-            plan=trial_plan,
-            start_date=now,
-            expiry_date=now + timedelta(days=trial_plan.duration_days),
-            status="trial",
-            is_active=True,
-        )
-
-        # 4️⃣ Link user ↔ tenant
-        user.tenant = tenant
-        user.is_setup_complete = False
-        user.save(update_fields=["tenant", "is_setup_complete"])
-
-        # Issue JWT
-        refresh = RefreshToken.for_user(user)
-        access = refresh.access_token
-
-        data = {
+        # ✅ CHECK IF USER EXISTS FIRST
+        try:
+            user = User.objects.select_related('tenant').get(email=email)
+            created = False
+            tenant = user.tenant
             
+            print(f"✅ Existing user logged in: {email}")
+            print(f"   User ID: {user.id}")
+            print(f"   Tenant ID: {tenant.id if tenant else 'None'}")
+            
+        except User.DoesNotExist:
+            # ✅ NEW USER - Create tenant and user
+            created = True
+            
+            print(f"🆕 Creating new user: {email}")
+            
+            # 1. Create Tenant
+            tenant = Tenant.objects.create(
+                tenant_id=str(uuid.uuid4()),
+                instance_name=fullname or email.split('@')[0],
+                email=email,
+                phone="",
+                address="",
+                status="trial",
+            )
+            
+            print(f"✅ Created tenant: {tenant.id}")
+
+            # 2. Get or create trial plan
+            trial_plan = SubscriptionPlan.objects.filter(
+                plan_name__iexact="Trial", 
+                is_active=True
+            ).first()
+
+            if not trial_plan:
+                trial_plan = SubscriptionPlan.objects.create(
+                    plan_name="Trial",
+                    description="Default trial plan",
+                    duration_days=7,
+                    price=0,
+                    max_students=None,
+                    max_teachers=None,
+                    max_admins=1,
+                    features=["Basic features"],
+                    is_active=True,
+                )
+                print(f"✅ Created trial plan: {trial_plan.id}")
+
+            # 3. Create subscription
+            now = timezone.now()
+            Subscription.objects.create(
+                tenant=tenant,
+                plan=trial_plan,
+                start_date=now,
+                expiry_date=now + timedelta(days=trial_plan.duration_days),
+                status="trial",
+                is_active=True,
+            )
+            
+            print(f"✅ Created trial subscription")
+
+            # 4. Create user
+            user = User.objects.create(
+                email=email,
+                fullname=fullname,
+                user_type="admin",
+                status="active",
+                is_staff=True,
+                profile_picture=picture,
+                tenant=tenant,
+                is_setup_complete=False,
+            )
+            
+            # Set random password (Google users don't use passwords)
+            user.set_password(str(uuid.uuid4()))
+            user.save()
+            
+            print(f"✅ Created user: {user.id}")
+
+        # ✅ Generate JWT tokens
+        refresh = RefreshToken.for_user(user)
+        access_token = refresh.access_token
+
+        # ✅ Prepare response
+        data = {
             "user": {
-                "id": user.id,
+                "id": str(user.id),
                 "email": user.email,
                 "fullname": user.fullname,
                 "user_type": user.user_type,
+                "profile_picture": user.profile_picture,
+                "is_setup_complete": user.is_setup_complete,
             },
             "tenant": {
-                "id": tenant.id,
+                "id": str(tenant.id),
                 "tenant_id": tenant.tenant_id,
                 "instance_name": tenant.instance_name,
                 "email": tenant.email,
@@ -329,30 +360,33 @@ class GoogleAuthView(APIView):
                 "address": tenant.address,
                 "status": tenant.status,
             } if tenant else None,
+            "is_new_user": created,  # ✅ Frontend can use this
         }
 
-        response =  Response(data,status=status.HTTP_200_OK)
+        response = Response(data, status=status.HTTP_200_OK)
 
+        # ✅ Set httpOnly cookies
         response.set_cookie(
             key="access_token",
-            value=str(refresh.access_token),
+            value=str(access_token),
+            max_age=60 * 60,  # 1 hour
             httponly=True,
             samesite="Lax",
-            secure=False,
+            secure=False,  # Set True in production
             path="/",
-            )
+        )
 
         response.set_cookie(
             key="refresh_token",
             value=str(refresh),
+            max_age=7 * 24 * 60 * 60,  # 7 days
             httponly=True,
             samesite="Lax",
             secure=False,
             path="/",
         )
-        return response
-    
 
+        return response
 class AdminLoginView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []

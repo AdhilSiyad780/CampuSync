@@ -48,7 +48,8 @@ export default function StudentsPage() {
         api.get(`students/?page=${page}`),
         api.get("classes/")
       ]);
-      
+      console.log('students lists',studentsRes.data)
+      console.log('classes list',classesRes.data)
       setStudents(studentsRes.data || {results:[], count:0});
       setClasses(classesRes.data || {results:[]});
       setCurrentPage(page);

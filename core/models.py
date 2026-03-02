@@ -77,8 +77,12 @@ class User(AbstractBaseUser,PermissionsMixin):
         ],
         default='active'
     )
-    profile_picture = models.ImageField(upload_to="profiles/", null=True, blank=True)
-
+    profile_picture = models.URLField(
+        max_length=500, 
+        blank=True, 
+        null=True
+    )
+    
     is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
     is_setup_complete = models.BooleanField(default=False)

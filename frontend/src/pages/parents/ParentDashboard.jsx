@@ -40,6 +40,12 @@ export default function ParentDashboard() {
       icon: <CreditCard size={20} />, 
       path: "/parent/finance" 
     },
+    {
+      name: "TImeTable", 
+      icon: <CreditCard size={20} />, 
+      path: "/parent/timetable" 
+    }
+    ,
     { 
       name: "Messages", 
       icon: <MessageSquare size={20} />, 

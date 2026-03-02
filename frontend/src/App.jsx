@@ -37,6 +37,7 @@ import StudentProfile from "./pages/students/StudentProfile.jsx";
 import StudentAssignmentsPage from "./pages/students/StudentAssignmentsPage.jsx";
 import StudentAttendancePage from "./pages/students/StudentAttendencePage.jsx";
 import StudentExamsPage from "./pages/students/StudentExamPage.jsx";
+import StudentTimetablePage from "./pages/students/StudentTimetablePage.jsx";
 
 // ---------- TEACHER ----------
 import TeacherLogin from "./pages/teacher/TeacherLogin.jsx";
@@ -51,6 +52,8 @@ import ParentLogin from "./pages/parents/ParentLogin.jsx";
 import ParentDashboard from "./pages/parents/ParentDashboard.jsx";
 import ParentProfile from "./pages/parents/ParentProfile.jsx";
 import ParentFinancePage from "./pages/parents/ParentFinacePage.jsx";
+import ParentAttendancePage from "./pages/parents/ParentAttendencePage.jsx";
+import ParentTimetablePage from "./pages/parents/ParentTimetablePage.jsx";
 
 // ---------- FORGOT PASSWORD ----------
 import ForgotPasswordPage from "./pages/forgotpassword/ForgotPasswordPage.jsx";
@@ -104,6 +107,7 @@ export default function App() {
             <Route path="/student/attendence" element={<StudentAttendancePage />} />
             <Route path="/student/exams" element={<StudentExamsPage />} />
             <Route path="/student/announcement" element={<AnnouncementList />} />
+             <Route path="/student/timetable" element={<StudentTimetablePage />} />
           </Route>
 
           {/* ================= TEACHER ROUTES ================= */}
@@ -122,6 +126,9 @@ export default function App() {
             <Route path="/parent/profile" element={<ParentProfile />} />
             <Route path="/parent/finance" element={<ParentFinancePage />} />
             <Route path="/parent/announcement" element={<AnnouncementList />} />
+            <Route path="/parent/attendance" element={<ParentAttendancePage />} />
+            <Route path="/parent/timetable" element={<ParentTimetablePage />} />
+
           </Route>
 
           {/* ================= SUPERADMIN ROUTES ================= */}
