@@ -8,7 +8,7 @@ from .views import (
     SubjectView,TimeSlotViewSet,TableEntryView,
     TimetableGridView,
     SubjectAllView,
-    SchoolClassAllView,StudentTimetableView,ParentTimetableView
+    SchoolClassAllView,StudentTimetableView,ParentTimetableView,TeacherTimetableView
 )
 from rest_framework.routers import DefaultRouter
 
@@ -33,9 +33,11 @@ urlpatterns = [
     # ALL SUBJECTS AND CLASS TO AVOID PAGINATION
     path('subject-all/', SubjectAllView.as_view()),
     path('class-all/', SchoolClassAllView.as_view()),
+
     path('timetable/my-timetable/', StudentTimetableView.as_view(), name='student-timetable'),
     path('timetable/children/', ParentTimetableView.as_view(), name='parent-timetable'),
-    
+    path('timetable/my-schedule/', TeacherTimetableView.as_view(), name='teacher-timetable'),
+
 
     path('',include(router.urls))
 ]

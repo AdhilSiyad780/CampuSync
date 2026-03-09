@@ -12,7 +12,7 @@ urlpatterns = [
     path("superadmin/profile/", SuperAdminProfileView.as_view()),
 
     path("signup/send-otp/", AdminSignupSendOTPView.as_view(), name="admin_signup_send_otp"),
-    path("signup/verify-otp/", AdminVerifyOTPView.as_view(), name="admin_signup_verify_otp"),
+    path("signup/verify-aaotp/", AdminVerifyOTPView.as_view(), name="admin_signup_verify_otp"),
     path("signup/", AdminSignupView.as_view(), name="admin_signup"),
     path("auth/google-login/", GoogleAuthView.as_view(), name="google_login"),
     path("login/", AdminLoginView.as_view(), name="admin_login"),

@@ -471,3 +471,114 @@ class ParentTimetableView(APIView):
             "children_count": len(children_timetables),
             "children": children_timetables
         })
+    
+
+# class_announcement_attendence/views.py
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from rest_framework import status
+from .models import TimetableEntry, TimeSlot
+from collections import defaultdict
+
+class TeacherTimetableView(APIView):
+    """
+    Get timetable for the logged-in teacher
+    Shows all classes they teach organized by day and time
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        user = request.user
+        
+        # Verify user is a teacher
+        if user.user_type != 'teacher':
+            return Response(
+                {'error': 'Only teachers can access this endpoint'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Get all timetable entries for this teacher
+        entries = TimetableEntry.objects.filter(
+            teacher=user,
+            tenant=user.tenant
+        ).select_related(
+            'subject', 
+            'school_class', 
+            'time_slot'
+        ).order_by('time_slot__order')
+        
+        if not entries.exists():
+            return Response(
+                {
+                    'teacher': {
+                        'name': user.fullname,
+                        'email': user.email,
+                    },
+                    'message': 'No classes assigned yet',
+                    'timetable': None,
+                    'stats': {
+                        'total_classes': 0,
+                        'unique_subjects': 0,
+                        'classes_taught': 0,
+                    }
+                },
+                status=status.HTTP_200_OK
+            )
+        
+        # Organize by days
+        days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+        grid_data = {day: [] for day in days}
+        
+        # Track statistics
+        unique_subjects = set()
+        unique_classes = set()
+        
+        for entry in entries:
+            grid_data[entry.day_of_week].append({
+                "id": entry.id,
+                "time_slot": entry.time_slot.id,
+                "time_slot_name": entry.time_slot.name,
+                "start_time": entry.time_slot.start_time,
+                "end_time": entry.time_slot.end_time,
+                "is_break": entry.time_slot.is_break,
+                "subject_name": entry.subject.name,
+                "subject_code": entry.subject.code,
+                "class_name": f"{entry.school_class.class_name} - {entry.school_class.division}",
+                "class_id": entry.school_class.id,
+                "room_number": entry.room_number,
+                "order": entry.time_slot.order,
+            })
+            
+            unique_subjects.add(entry.subject.id)
+            unique_classes.add(entry.school_class.id)
+        
+        # Sort each day's entries by time slot order
+        for day in days:
+            grid_data[day] = sorted(
+                grid_data[day],
+                key=lambda x: x['order']
+            )
+        
+        # Calculate weekly stats
+        total_periods = entries.count()
+        periods_per_day = {}
+        for day in days:
+            periods_per_day[day] = len(grid_data[day])
+        
+        return Response({
+            "teacher": {
+                "name": user.fullname,
+                "email": user.email,
+                "employee_id": getattr(user.teacher_profile, 'employee_id', None) if hasattr(user, 'teacher_profile') else None,
+            },
+            "timetable": grid_data,
+            "stats": {
+                "total_classes": total_periods,
+                "unique_subjects": len(unique_subjects),
+                "classes_taught": len(unique_classes),
+                "periods_per_day": periods_per_day,
+                "busiest_day": max(periods_per_day, key=periods_per_day.get) if periods_per_day else None,
+            }
+        })  

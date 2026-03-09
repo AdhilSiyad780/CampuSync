@@ -184,6 +184,8 @@ class SubjectSerializer(serializers.ModelSerializer):
         fields =  [
             'id','name','code','description'
         ]
+
+
 class SchoolClassAllSerializer(serializers.ModelSerializer):
     class_teacher_details = ClassTeacherSerializer(source='class_teacher', read_only=True)
     class_teacher_id = serializers.PrimaryKeyRelatedField(
@@ -214,3 +216,4 @@ class SchoolClassAllSerializer(serializers.ModelSerializer):
         """Count students enrolled in this class"""
         return obj.tenant.student_profiles.filter(id=obj.id).count()
     
+

@@ -38,6 +38,7 @@ import StudentAssignmentsPage from "./pages/students/StudentAssignmentsPage.jsx"
 import StudentAttendancePage from "./pages/students/StudentAttendencePage.jsx";
 import StudentExamsPage from "./pages/students/StudentExamPage.jsx";
 import StudentTimetablePage from "./pages/students/StudentTimetablePage.jsx";
+import StudentAIAssistantPage from "./pages/students/StudentassistantPage.jsx";
 
 // ---------- TEACHER ----------
 import TeacherLogin from "./pages/teacher/TeacherLogin.jsx";
@@ -46,6 +47,7 @@ import TeacherProfile from "./pages/teacher/TeacherProfile.jsx";
 import TeacherAssignmentsPage from "./pages/teacher/TeacherAssignmentsPage.jsx";
 import TeacherAttendancePage from "./pages/teacher/TeacherAttendencePage.jsx";
 import TeacherExamsPage from "./pages/teacher/TeacherExamsPage.jsx";
+import TeacherTimetablePage from "./pages/teacher/TeacherTimetablePage.jsx";
 
 // ---------- PARENT ----------
 import ParentLogin from "./pages/parents/ParentLogin.jsx";
@@ -108,8 +110,10 @@ export default function App() {
             <Route path="/student/exams" element={<StudentExamsPage />} />
             <Route path="/student/announcement" element={<AnnouncementList />} />
              <Route path="/student/timetable" element={<StudentTimetablePage />} />
+            <Route path="/student/assistant" element={<StudentAIAssistantPage />} />
+            
           </Route>
-
+    
           {/* ================= TEACHER ROUTES ================= */}
           <Route element={<RoleProtectedRoute allowedRoles={["teacher"]} />}>
             <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
@@ -118,6 +122,7 @@ export default function App() {
             <Route path="/teacher/attendence" element={<TeacherAttendancePage />} />
             <Route path="/teacher/exam" element={<TeacherExamsPage />} />
             <Route path="/teacher/announcement" element={<AnnouncementList />} />
+            <Route path="teacher/timetable"  element={<TeacherTimetablePage />} />
           </Route>
 
           {/* ================= PARENT ROUTES ================= */}

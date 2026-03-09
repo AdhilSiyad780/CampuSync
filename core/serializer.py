@@ -29,9 +29,10 @@ class SuperAdminLoginSerializer(serializers.Serializer):
                 'id':user.id,
                 'email':user.email,
                 'name':user.fullname,
-                'user_type':user.user_type
+                'user_type':user.is_superuser,
+
             }
-        }
+        }   
     
 class SuperAdminProfileSerializer(serializers.ModelSerializer):
     class Meta:

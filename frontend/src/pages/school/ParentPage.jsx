@@ -1,3 +1,5 @@
+// frontend/src/pages/school/ParentsPage.jsx
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
@@ -24,6 +26,7 @@ export default function ParentsPage() {
   const [success, setSuccess] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [studentSearchTerm, setStudentSearchTerm] = useState(""); // ✅ NEW
   const [currentPage, setCurrentPage] = useState(1);
 
   const [form, setForm] = useState({
@@ -161,7 +164,15 @@ export default function ParentsPage() {
 
   const resetLocalForm = () => {
     setForm({ id: null, fullname: "", email: "", phone: "", contact_number: "", whatsapp_number: "", occupation: "", DOB: '', relations: [] });
+    setStudentSearchTerm(""); // ✅ Reset student search when closing form
   };
+
+  // ✅ Filter students based on search term
+  const filteredStudents = students.filter(s =>
+    s.fullname?.toLowerCase().includes(studentSearchTerm.toLowerCase()) ||
+    s.admission_number?.toLowerCase().includes(studentSearchTerm.toLowerCase()) ||
+    s.email?.toLowerCase().includes(studentSearchTerm.toLowerCase())
+  );
 
   // Filter parents based on search term
   const filteredParents = parents.results.filter(p =>
@@ -221,32 +232,94 @@ export default function ParentsPage() {
               {/* SIDEBAR LINKING */}
               <div className="lg:col-span-4 space-y-4">
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Link Students</label>
-                <div className="bg-slate-50 rounded-[2rem] border border-slate-100 p-4 max-h-[400px] overflow-y-auto space-y-2">
-                  {students.map(s => {
-                    const rel = form.relations.find(r => r.student_id === s.id);
-                    return (
-                      <div key={s.id} className={`p-4 rounded-2xl border transition-all ${rel ? 'bg-white border-blue-200 shadow-sm' : 'border-transparent'}`}>
-                        <label className="flex items-center gap-3 cursor-pointer">
-                          <input type="checkbox" checked={!!rel} onChange={() => handleToggleStudent(s.id)} className="w-5 h-5 rounded-lg text-blue-600 border-slate-300" />
-                          <div className="flex-1">
-                            <p className="text-sm font-bold text-slate-800">{s.fullname}</p>
-                            <p className="text-[9px] font-black text-slate-400 uppercase">{s.admission_number}</p>
-                          </div>
-                        </label>
-                        {rel && (
-                          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
-                            <select value={rel.relation_type} onChange={e => handleRelationChange(s.id, 'relation_type', e.target.value)} className="text-[10px] font-bold uppercase bg-slate-100 border-none rounded-lg px-2 py-1 outline-none">
-                              {RELATION_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                            </select>
-                            <label className="flex items-center gap-1.5 text-[9px] font-black text-blue-600 uppercase">
-                              <input type="radio" checked={rel.is_primary} onChange={() => handleRelationChange(s.id, 'is_primary', true)} /> Primary
-                            </label>
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
+                
+                {/* ✅ STUDENT SEARCH INPUT */}
+                <div className="relative">
+                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search students..."
+                    value={studentSearchTerm}
+                    onChange={(e) => setStudentSearchTerm(e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                  />
+                  {studentSearchTerm && (
+                    <button
+                      type="button"
+                      onClick={() => setStudentSearchTerm("")}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
                 </div>
+
+                {/* ✅ SHOW SEARCH RESULTS COUNT */}
+                {studentSearchTerm && (
+                  <p className="text-xs text-slate-500 font-bold px-2">
+                    {filteredStudents.length} student{filteredStudents.length !== 1 ? 's' : ''} found
+                  </p>
+                )}
+
+                {/* STUDENT LIST */}
+                <div className="bg-slate-50 rounded-[2rem] border border-slate-100 p-4 max-h-[400px] overflow-y-auto space-y-2">
+                  {filteredStudents.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Users size={32} className="mx-auto text-slate-300 mb-2" />
+                      <p className="text-sm text-slate-400 font-bold">
+                        {studentSearchTerm ? "No students found" : "No students available"}
+                      </p>
+                      {studentSearchTerm && (
+                        <button
+                          type="button"
+                          onClick={() => setStudentSearchTerm("")}
+                          className="mt-2 text-xs text-blue-600 font-bold hover:underline"
+                        >
+                          Clear search
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    filteredStudents.map(s => {
+                      const rel = form.relations.find(r => r.student_id === s.id);
+                      return (
+                        <div key={s.id} className={`p-4 rounded-2xl border transition-all ${rel ? 'bg-white border-blue-200 shadow-sm' : 'border-transparent'}`}>
+                          <label className="flex items-center gap-3 cursor-pointer">
+                            <input 
+                              type="checkbox" 
+                              checked={!!rel} 
+                              onChange={() => handleToggleStudent(s.id)} 
+                              className="w-5 h-5 rounded-lg text-blue-600 border-slate-300" 
+                            />
+                            <div className="flex-1">
+                              <p className="text-sm font-bold text-slate-800">{s.fullname}</p>
+                              <p className="text-[9px] font-black text-slate-400 uppercase">{s.admission_number}</p>
+                            </div>
+                          </label>
+                          {rel && (
+                            <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+                              <select 
+                                value={rel.relation_type} 
+                                onChange={e => handleRelationChange(s.id, 'relation_type', e.target.value)} 
+                                className="text-[10px] font-bold uppercase bg-slate-100 border-none rounded-lg px-2 py-1 outline-none"
+                              >
+                                {RELATION_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                              </select>
+                              <label className="flex items-center gap-1.5 text-[9px] font-black text-blue-600 uppercase">
+                                <input 
+                                  type="radio" 
+                                  checked={rel.is_primary} 
+                                  onChange={() => handleRelationChange(s.id, 'is_primary', true)} 
+                                /> Primary
+                              </label>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+
                 <button type="submit" disabled={saving} className="w-full bg-[#1E293B] text-white py-4 rounded-2xl font-black shadow-xl flex items-center justify-center gap-3 hover:bg-slate-800 disabled:opacity-60 transition-all">
                    {saving ? (
                      <>
@@ -452,4 +525,4 @@ function DetailItem({ label, value, icon }) {
       </div>
     </div>
   );
-}
+} 

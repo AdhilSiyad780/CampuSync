@@ -19,15 +19,17 @@ export default function LoginPage() {
       const res = await api.post("superadmin/login/", { email, password });
       const userData = res.data?.user;
       console.log(userData.user_type)
+      console.log(userData)
       if (!userData) {
         setError("Invalid response from server.");
         return;
       }
 
       // 1. Check if the user is actually a superadmin
-      if (userData.user_type === 'superadmin') {
+      if (userData.user_type) {
         // Save non-sensitive info for the UI
       localStorage.setItem("user", JSON.stringify(userData));
+      
         
         // ✅ KEY FIX: Update AuthContext by calling checkAuth
         // This ensures that RoleProtectedRoute sees the authenticated user
@@ -48,9 +50,10 @@ export default function LoginPage() {
 
     } catch (err) {
       console.error("LOGIN ERROR:", err.response?.data || err.message);
+      console.log(err.response)
       setError(err.response?.data?.detail || "Invalid email or password.");
     }
-  };;
+  };;   
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-100 dark:bg-slate-950">
