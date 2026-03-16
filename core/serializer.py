@@ -78,8 +78,9 @@ class AdminSignupSendOTPSerializer(serializers.Serializer):
 
         # Generate 6-digit OTP
         otp_code = f"{random.randint(100000, 999999)}"
-
+        print(otp_code)
         otp_obj = OTPVerification.objects.create(
+        
             email=email,
             otp=otp_code,
             purpose=OTPVerification.Purpose.ADMIN_SIGNUP,
@@ -185,7 +186,7 @@ class AdminVerifyOTPSerializer(serializers.Serializer):
     def validate(self, attrs):
         email = attrs["email"]
         otp = attrs["otp"]
-
+        print(otp,'recived otp')
         otp_obj = (
             OTPVerification.objects.filter(
                 email=email,

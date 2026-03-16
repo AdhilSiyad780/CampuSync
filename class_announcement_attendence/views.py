@@ -16,7 +16,7 @@ from members.views import IsAdminUserType
 
 class SchoolClassListCreateView(generics.ListCreateAPIView):
     serializer_class = SchoolClassSerializer
-    permission_classes = [IsAuthenticated,IsAdminUserType]
+    permission_classes = [IsAuthenticated]
     pagination_class = PaginationProperties
     def get_queryset(self):
         user = self.request.user

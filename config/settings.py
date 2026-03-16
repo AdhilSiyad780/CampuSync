@@ -45,7 +45,8 @@ INSTALLED_APPS = [
     'attendence',
     'exams',
     'finance',
-    'chat'    
+    'chat',
+    'meetings',
     
 ]
 
