@@ -3,7 +3,9 @@ import {
   FileText, Calendar, BookOpen, Paperclip, 
   ChevronRight, Clock, CheckCircle, AlertCircle, Upload, X, MessageSquare 
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import api from "../../api/axios";
+import { Backarrow } from "../../componets/Backarrow";
 
 export default function StudentAssignmentsPage() {
   const [assignments, setAssignments] = useState({ results: [], count: 0 });
@@ -79,9 +81,10 @@ export default function StudentAssignmentsPage() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        
+            <Backarrow/>  
         {/* HEADER */}
         <div>
+      
           <h1 className="text-3xl font-black text-slate-800 tracking-tight">My Coursework</h1>
           <p className="text-sm text-slate-500 flex items-center gap-2 mt-1">
             Student Portal <ChevronRight size={14} /> <span className="text-indigo-600 font-bold">Assignments</span>

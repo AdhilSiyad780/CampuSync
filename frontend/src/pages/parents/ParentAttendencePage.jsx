@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import api from "../../api/axios";
 import { useNavigate } from "react-router-dom";
+import { Backarrow } from "../../componets/Backarrow";
 
 export default function ParentAttendancePage() {
   const [children, setChildren] = useState([]);
@@ -120,6 +121,7 @@ export default function ParentAttendancePage() {
       <div className="max-w-4xl mx-auto space-y-6">
 
         {/* HEADER */}
+        <Backarrow/>
         <div>
           <h1 className="text-3xl font-black text-slate-800 tracking-tight">Attendance</h1>
           <p className="text-sm text-slate-500 mt-1">Monitor your child's daily attendance</p>

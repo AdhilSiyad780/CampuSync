@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Calendar, Clock, BookOpen, User, Loader2, ChevronRight, Users } from "lucide-react";
 import api from "../../api/axios";
+import { Backarrow } from "../../componets/Backarrow";
 
 const DAYS = [
   { value: 'monday', label: 'Monday', short: 'Mon' },
@@ -64,6 +65,7 @@ export default function ParentTimetablePage() {
       <div className="max-w-6xl mx-auto space-y-6">
         
         {/* Header */}
+        <Backarrow/>
         <div>
           <h1 className="text-3xl font-black text-slate-800 tracking-tight">
             Children's Timetables

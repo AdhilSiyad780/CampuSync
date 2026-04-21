@@ -9,6 +9,7 @@ import {
 import api from "../../api/axios";
 import { useNavigate } from "react-router-dom";
 import { useAnnouncementWebSocket } from "../../hooks/useAnnouncementWebSocket";
+import { Backarrow } from "../../componets/Backarrow";
 
 export default function AnnouncementsPage() {
   const [announcements, setAnnouncements] = useState([]);
@@ -223,6 +224,7 @@ const handleAnnouncementUpdate = useCallback((payload) => {
       {/* IN-APP NOTIFICATION */}
       {showNotification && (
         <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2">
+          
           <div className="bg-white border-2 border-blue-200 rounded-2xl shadow-2xl p-4 flex items-center gap-3 max-w-md">
             <div className="p-2 bg-blue-50 rounded-xl">
               <Megaphone className="text-blue-600" size={20} />
@@ -245,6 +247,8 @@ const handleAnnouncementUpdate = useCallback((payload) => {
         <div className="p-6 border-b border-slate-100 space-y-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-3">
+                    <Backarrow />   {/* ✅ Add here */}
+
               <h2 className="text-xl font-black text-slate-800">Broadcasts</h2>
               {/* WebSocket Status Indicator */}
               <div className="flex items-center gap-2">

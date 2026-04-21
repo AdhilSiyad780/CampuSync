@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import api from "../../api/axios";
 import { useNavigate } from "react-router-dom";
+import { Backarrow } from "../../componets/Backarrow";
 
 const SUGGESTED_PROMPTS = [
   { icon: Calculator, text: "Explain quadratic equations with examples", color: "text-violet-500" },
@@ -25,6 +26,7 @@ const SUGGESTED_PROMPTS = [
 function TypingIndicator() {
   return (
     <div className="flex items-end gap-3 mb-5">
+      <Backarrow/>
       <div className="w-8 h-8 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shrink-0 shadow-md">
         <Sparkles size={14} className="text-white" />
       </div>
@@ -189,8 +191,10 @@ export default function StudentAIAssistantPage() {
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
 
       {/* HEADER */}
+
       <header className="bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between shrink-0 shadow-sm z-10">
         <div className="flex items-center gap-3">
+          <Backarrow/>
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-200">
             <Sparkles size={18} className="text-white" />
           </div>

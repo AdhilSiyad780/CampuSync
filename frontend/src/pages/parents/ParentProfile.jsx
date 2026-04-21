@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/axios";
+import { Backarrow } from "../../componets/Backarrow";
 
 export default function ParentProfile() {
   const navigate = useNavigate();
@@ -77,6 +78,7 @@ export default function ParentProfile() {
       <div className="max-w-5xl mx-auto space-y-6">
         
         {/* HEADER SECTION */}
+        <Backarrow/>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-black text-slate-800 tracking-tight">Parent Account</h1>

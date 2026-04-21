@@ -7,6 +7,7 @@ import {
   Droplets, Hash, LayoutGrid, FileText
 } from "lucide-react";
 import api from "../../api/axios";
+import { Backarrow } from "../../componets/Backarrow";
 
 export default function StudentsPage() {
   const [students, setStudents] = useState({results:[],count:0,next:null,previous:null});
@@ -182,7 +183,7 @@ export default function StudentsPage() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        
+        <Backarrow/>
         {/* HEADER */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>

@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/axios";
+import { Backarrow } from "../../componets/Backarrow";
 
 export default function StudentProfile() {
   const navigate = useNavigate();
@@ -96,7 +97,7 @@ export default function StudentProfile() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-4 md:p-8">
       <div className="max-w-6xl mx-auto space-y-6">
-        
+         <Backarrow/>
         {/* TOP BAR */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>

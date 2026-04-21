@@ -4,6 +4,7 @@ import {
   ChevronRight, AlertCircle, Users, CheckCircle
 } from "lucide-react";
 import api from "../../api/axios";
+import { Backarrow } from "../../componets/Backarrow";
 
 const DAYS = [
   { value: 'monday', label: 'Monday', short: 'Mon' },
@@ -82,6 +83,7 @@ export default function TimetablePage() {
       <div className="max-w-[1600px] mx-auto space-y-8">
         
         {/* HEADER */}
+        <Backarrow/>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-black text-slate-800 tracking-tight">

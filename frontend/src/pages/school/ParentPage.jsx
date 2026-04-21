@@ -8,6 +8,7 @@ import {
   PhoneCall, GraduationCap, ShieldCheck, Heart, Trash2, Search
 } from "lucide-react";
 import api from "../../api/axios";
+import { Backarrow } from "../../componets/Backarrow";
 
 const RELATION_OPTIONS = [
   { value: "father", label: "Father" },
@@ -189,7 +190,9 @@ export default function ParentsPage() {
       <div className="max-w-7xl mx-auto space-y-6">
         
         {/* TOP BAR */}
+        
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <Backarrow/>
           <div>
             <h1 className="text-3xl font-black text-slate-800 tracking-tight">Parent Directory</h1>
             <p className="text-sm text-slate-500 flex items-center gap-2 mt-1">

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../../api/axios";
 import { useNavigate } from "react-router-dom";
-
+import { Backarrow } from "../../componets/Backarrow";
 
 export default function AdminProfile() {
   const [admin, setAdmin] = useState({
@@ -113,6 +113,7 @@ export default function AdminProfile() {
       <div className="max-w-6xl mx-auto space-y-6">
         
         {/* Header */}
+        <Backarrow/>
         <div className="text-center mb-8">
           <h2 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-2">
             Profile Settings

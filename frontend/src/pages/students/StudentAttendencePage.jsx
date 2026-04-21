@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import api from "../../api/axios";
 import { useNavigate } from "react-router-dom";
+import { Backarrow } from "../../componets/Backarrow";
 
 export default function StudentAttendancePage() {
   const [attendanceData, setAttendanceData] = useState([]);
@@ -66,11 +67,15 @@ export default function StudentAttendancePage() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-4 md:p-8">
+       <Backarrow/>
       <div className="max-w-4xl mx-auto space-y-6">
         
         {/* HEADER & CONTROLS */}
+        x
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
+           
+
             <h1 className="text-3xl font-black text-slate-800 tracking-tight">My Attendance</h1>
             <p className="text-sm text-slate-500 mt-1">Track your daily presence and monthly statistics</p>
           </div>

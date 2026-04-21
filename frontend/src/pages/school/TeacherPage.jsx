@@ -9,6 +9,7 @@ import {
   IndianRupee, Search, Trash2, FileText, Upload
 } from "lucide-react";
 import api from "../../api/axios";
+import { Backarrow } from "../../componets/Backarrow";
 
 export default function TeachersPage() {
   const [teachers, setTeachers] = useState({results: [], count: 0, next: null, previous: null});
@@ -227,6 +228,7 @@ export default function TeachersPage() {
       <div className="max-w-7xl mx-auto space-y-6">
         
         {/* HEADER */}
+        <Backarrow/>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-black text-slate-800 tracking-tight">Faculty Management</h1>

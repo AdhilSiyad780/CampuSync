@@ -4,6 +4,7 @@ import {
   AlertCircle, X, Loader2, Receipt, Clock, IndianRupee
 } from "lucide-react";
 import api from "../../api/axios";
+import { Backarrow } from "../../componets/Backarrow";
 
 export default function ParentFinancePage() {
   const [fees, setFees] = useState([]);
@@ -151,6 +152,7 @@ export default function ParentFinancePage() {
       <div className="max-w-6xl mx-auto space-y-6">
         
         {/* HEADER */}
+        <Backarrow/>
         <div className="flex justify-between items-end">
           <div>
             <h1 className="text-3xl font-black text-slate-800 tracking-tight">Fee Portal</h1>
