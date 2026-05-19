@@ -4,7 +4,7 @@ import { AuthProvider } from "./context/AuthContext";
 import { ChatProvider } from "./context/ChatContext";
 
 import RoleProtectedRoute from "./componets/ProtectedRoute.jsx";
-import Layout from "./componets/Layout.jsx"; // Assuming this is your sidebar/nav layout
+import Layout from "./componets/Layout.jsx";
 
 // ---------- PUBLIC ----------
 import LandingPage from "./pages/LandingPage.jsx";
@@ -61,6 +61,10 @@ import ParentTimetablePage from "./pages/parents/ParentTimetablePage.jsx";
 import ForgotPasswordPage from "./pages/forgotpassword/ForgotPasswordPage.jsx";
 import ResetPasswordPage from "./pages/forgotpassword/ResetPasswordPage.jsx";
 
+// ---------- MEETINGS ----------
+import MeetingsPage from "./pages/MeetingsPage.jsx"
+import MeetingRoomPage from "./pages/MeetingsRoomPage.jsx";
+
 // ---------- ANNOUNCEMENTS ----------
 import AnnouncementList from "./componets/AnnouncementList.jsx";
 
@@ -81,7 +85,6 @@ export default function App() {
           {/* ================= LOGIN/SIGNUP ROUTES ================= */}
           <Route path="/login" element={<AdminLoginPage />} />
           <Route path="/signup" element={<AdminSignupEmailStep />} />
-          
           <Route path="/student/login" element={<StudentLoginPage />} />
           <Route path="/teacher/login" element={<TeacherLogin />} />
           <Route path="/parent/login" element={<ParentLogin />} />
@@ -99,6 +102,21 @@ export default function App() {
             <Route path="/announcements" element={<AnnouncementsPage />} />
             <Route path="/timetable" element={<TimetablePage />} />
             <Route path="/finance" element={<AdminFinancePage />} />
+            <Route path="/meetings" element={<MeetingsPage />} />
+            <Route path="/meeting/:roomName" element={<MeetingRoomPage />} />
+          </Route>
+
+          {/* ================= TEACHER ROUTES ================= */}
+          <Route element={<RoleProtectedRoute allowedRoles={["teacher"]} />}>
+            <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
+            <Route path="/teacher/profile" element={<TeacherProfile />} />
+            <Route path="/teacher/assignment" element={<TeacherAssignmentsPage />} />
+            <Route path="/teacher/attendence" element={<TeacherAttendancePage />} />
+            <Route path="/teacher/exam" element={<TeacherExamsPage />} />
+            <Route path="/teacher/announcement" element={<AnnouncementList />} />
+            <Route path="/teacher/timetable" element={<TeacherTimetablePage />} />
+            <Route path="/teacher/meetings" element={<MeetingsPage />} />
+            <Route path="/meeting/:roomName" element={<MeetingRoomPage />} />
           </Route>
 
           {/* ================= STUDENT ROUTES ================= */}
@@ -109,20 +127,10 @@ export default function App() {
             <Route path="/student/attendence" element={<StudentAttendancePage />} />
             <Route path="/student/exams" element={<StudentExamsPage />} />
             <Route path="/student/announcement" element={<AnnouncementList />} />
-             <Route path="/student/timetable" element={<StudentTimetablePage />} />
+            <Route path="/student/timetable" element={<StudentTimetablePage />} />
             <Route path="/student/assistant" element={<StudentAIAssistantPage />} />
-            
-          </Route>
-    
-          {/* ================= TEACHER ROUTES ================= */}
-          <Route element={<RoleProtectedRoute allowedRoles={["teacher"]} />}>
-            <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
-            <Route path="/teacher/profile" element={<TeacherProfile />} />
-            <Route path="/teacher/assignment" element={<TeacherAssignmentsPage />} />
-            <Route path="/teacher/attendence" element={<TeacherAttendancePage />} />
-            <Route path="/teacher/exam" element={<TeacherExamsPage />} />
-            <Route path="/teacher/announcement" element={<AnnouncementList />} />
-            <Route path="teacher/timetable"  element={<TeacherTimetablePage />} />
+            <Route path="/student/meetings" element={<MeetingsPage />} />
+            <Route path="/meeting/:roomName" element={<MeetingRoomPage />} />
           </Route>
 
           {/* ================= PARENT ROUTES ================= */}
@@ -133,12 +141,11 @@ export default function App() {
             <Route path="/parent/announcement" element={<AnnouncementList />} />
             <Route path="/parent/attendance" element={<ParentAttendancePage />} />
             <Route path="/parent/timetable" element={<ParentTimetablePage />} />
-
           </Route>
 
           {/* ================= SUPERADMIN ROUTES ================= */}
-          <Route 
-            path="/superadmin" 
+          <Route
+            path="/superadmin"
             element={
               <RoleProtectedRoute allowedRoles={["superadmin"]}>
                 <Layout />
@@ -152,7 +159,7 @@ export default function App() {
             <Route path="dashboard" element={<div>Dashboard coming soon</div>} />
           </Route>
 
-          {/* ================= CHAT (STANDALONE) ================= */}
+          {/* ================= CHAT ================= */}
           <Route
             path="/chat"
             element={
@@ -161,6 +168,7 @@ export default function App() {
               </ChatProvider>
             }
           />
+
         </Routes>
       </AuthProvider>
     </Router>
